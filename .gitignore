@@ -20,6 +20,7 @@
 *.kicad_sch-bak
 *.step-bak
 *.wrl-bak
+*.docx
 
 # Cache and symbol tables
 *.cache
