@@ -1,0 +1,148 @@
+(footprint "SML-522"
+	(version 20241229)
+	(generator "pcbnew")
+	(generator_version "9.0")
+	(layer "F.Cu")
+	(property "Reference" "LED**"
+		(at -0.09 -1.675 0)
+		(unlocked yes)
+		(layer "F.SilkS")
+		(uuid "cb50c0ce-0220-4c26-a5d2-0a8a0d82f0d7")
+		(effects
+			(font
+				(size 1 1)
+				(thickness 0.15)
+			)
+		)
+	)
+	(property "Value" "SML-522"
+		(at 1.1176 2.6924 0)
+		(unlocked yes)
+		(layer "F.Fab")
+		(uuid "b130786e-e4e7-4412-99ab-0bcf0b37dd3d")
+		(effects
+			(font
+				(size 1 1)
+				(thickness 0.15)
+			)
+		)
+	)
+	(property "Datasheet" ""
+		(at 0 0 0)
+		(unlocked yes)
+		(layer "F.Fab")
+		(hide yes)
+		(uuid "591b36b6-0949-4c29-8b5f-6e0214b2ed47")
+		(effects
+			(font
+				(size 1 1)
+				(thickness 0.15)
+			)
+		)
+	)
+	(property "Description" ""
+		(at 0 0 0)
+		(unlocked yes)
+		(layer "F.Fab")
+		(hide yes)
+		(uuid "8876212b-c537-49d5-b8fe-aa799377157b")
+		(effects
+			(font
+				(size 1 1)
+				(thickness 0.15)
+			)
+		)
+	)
+	(attr smd)
+	(fp_rect
+		(start -1.54 -1.025)
+		(end 1.535 1)
+		(stroke
+			(width 0.12)
+			(type default)
+		)
+		(fill no)
+		(layer "F.SilkS")
+		(uuid "0bdfdfa1-358b-46e1-bf31-34a661c3687f")
+	)
+	(fp_circle
+		(center 1.785 -0.85)
+		(end 1.8866 -0.7992)
+		(stroke
+			(width 0.12)
+			(type default)
+		)
+		(fill no)
+		(layer "F.SilkS")
+		(uuid "d3ffd08d-4b52-419a-a9d1-cc31497710a3")
+	)
+	(fp_text user "${REFERENCE}"
+		(at 1.0668 6.2484 0)
+		(unlocked yes)
+		(layer "F.Fab")
+		(uuid "5350a60b-f598-49a6-b436-f7b486769f90")
+		(effects
+			(font
+				(size 1 1)
+				(thickness 0.15)
+			)
+		)
+	)
+	(fp_text user "C162070"
+		(at -2.54 4.9276 0)
+		(unlocked yes)
+		(layer "User.1")
+		(uuid "a9d2ec24-f5b2-41e5-983a-60474ee18737")
+		(effects
+			(font
+				(size 1 1)
+				(thickness 0.15)
+			)
+			(justify left bottom)
+		)
+	)
+	(pad "1" smd roundrect
+		(at 0.765 -0.45)
+		(size 0.925 0.4)
+		(layers "F.Cu" "F.Mask" "F.Paste")
+		(roundrect_rratio 0.15)
+		(thermal_bridge_angle 45)
+		(uuid "dd6c7325-aaae-4d5f-a9e9-12e0679cd14d")
+	)
+	(pad "2" smd roundrect
+		(at -0.765 -0.45)
+		(size 0.925 0.4)
+		(layers "F.Cu" "F.Mask" "F.Paste")
+		(roundrect_rratio 0.15)
+		(thermal_bridge_angle 45)
+		(uuid "133d6bab-4cbf-4deb-a579-a1136ed42596")
+	)
+	(pad "3" smd roundrect
+		(at 0.765 0.45)
+		(size 0.925 0.4)
+		(layers "F.Cu" "F.Mask" "F.Paste")
+		(roundrect_rratio 0.15)
+		(thermal_bridge_angle 45)
+		(uuid "d0b4bf48-0151-4367-9749-3240e33c2892")
+	)
+	(pad "4" smd roundrect
+		(at -0.765 0.45)
+		(size 0.925 0.4)
+		(layers "F.Cu" "F.Mask" "F.Paste")
+		(roundrect_rratio 0.15)
+		(thermal_bridge_angle 45)
+		(uuid "8273c110-1aef-4b7a-b141-cce23af2250a")
+	)
+	(embedded_fonts no)
+	(model "D:/OneDrive/Documents/KiCad/9.0/3dmodels/SML522M.step"
+		(offset
+			(xyz -0.8 -0.65 0)
+		)
+		(scale
+			(xyz 1 1 1)
+		)
+		(rotate
+			(xyz -0 -0 -0)
+		)
+	)
+)
