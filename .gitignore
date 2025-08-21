@@ -1,0 +1,50 @@
+# KiCad 9 – Ignore unnecessary or generated files
+
+# Backups and autosaves
+*.bak
+*.autosave
+*.tmp
+*.save
+# KiCad autosave backups
+*-backups/
+
+
+# Intermediate and generated files
+*.net
+*.xml
+*.xsl
+*.dcm
+*.cmp
+*.sch-bak
+*.kicad_pcb-bak
+*.kicad_sch-bak
+*.step-bak
+*.wrl-bak
+
+# Cache and symbol tables
+*.cache
+*.cache.lib
+fp-info-cache
+
+# KiCad 9 specific project artifacts
+*.kicad_prl
+*.kicad_wks
+*.kicad_mod-bak
+*.kicad_sym-bak
+*.kicad_footprint-bak
+*.kicad_board-bak
+*.kicad_schematic-bak
+
+# Simulation and plotting outputs
+*.cir
+*.plt
+*.ps
+
+# OS-specific clutter
+.DS_Store
+Thumbs.db
+
+# Build artifacts (if using external tools)
+build/
+dist/
+*.log
