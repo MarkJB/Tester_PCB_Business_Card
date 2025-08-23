@@ -57,8 +57,8 @@ const statusRunning = (statusLEDs) => {
   ledOff(statusLEDs.idle); // ensure idle LED is off
   startPulseLED(statusLEDs.run, 500); // fast pulse for active state
 
-  systemState.idle = true;
-  systemState.running = false;
+  systemState.idle = false;
+  systemState.running = true;
 };
 
 const statusIdle = (statusLEDs) => {
@@ -92,6 +92,31 @@ const flashLED = (
     }
   }, frequency);
   return interval;
+};
+
+const testCaseInProgress = (passLED, failLED, interval = 500) => {
+  let toggle = false;
+
+  const flash = setInterval(() => {
+    if (!systemState.running) {
+      clearInterval(flash);
+      ledOff(passLED);
+      ledOff(failLED);
+      return;
+    }
+
+    if (toggle) {
+      ledOn(passLED, "lime");
+      ledOff(failLED);
+    } else {
+      ledOn(failLED, "red");
+      ledOff(passLED);
+    }
+
+    toggle = !toggle;
+  }, interval);
+
+  activeFlashIntervals.push(flash);
 };
 
 // Helper to get LED rect inside group
@@ -193,7 +218,9 @@ document.addEventListener("DOMContentLoaded", () => {
 
   const runTestCase1 = () => {
     console.log("Running Test Case 1");
+    const { pass, fail } = testCaseLEDs[0];
     statusRunning(statusLEDs);
+    testCaseInProgress(pass, fail, 300);
 
     const requiredButtons = ["a", "b", "c"];
     const pressedButtons = new Set();
@@ -217,7 +244,12 @@ document.addEventListener("DOMContentLoaded", () => {
       const allPressed = requiredButtons.every((key) =>
         pressedButtons.has(key)
       );
-      const { pass, fail } = testCaseLEDs[0];
+
+      // Now that we are flashing the current test case LEDs to show that
+      // which test is in progress, we need to turn off both test case LEDs
+      // before indicating pass/fail
+      ledOff(pass);
+      ledOff(fail);
 
       if (allPressed) {
         console.log("Test Case 1 PASSED");
@@ -231,7 +263,9 @@ document.addEventListener("DOMContentLoaded", () => {
 
   const runTestCase2 = () => {
     console.log("Running Test Case 2 – Fast Interaction Test");
+    const { pass, fail } = testCaseLEDs[1];
     statusRunning(statusLEDs);
+    testCaseInProgress(pass, fail, 300);
 
     const pressTimes = [];
     const FAST_THRESHOLD = 200; // ms
@@ -247,8 +281,6 @@ document.addEventListener("DOMContentLoaded", () => {
     setTimeout(() => {
       buttonInputs.b.removeEventListener("click", handler);
       statusIdle(statusLEDs);
-
-      const { pass, fail } = testCaseLEDs[1];
 
       if (pressTimes.length < 2) {
         console.log("Test Case 2 FAILED – not enough presses");
@@ -267,7 +299,8 @@ document.addEventListener("DOMContentLoaded", () => {
       console.log(`Average interval: ${average.toFixed(1)} ms`);
 
       const allFast = intervals.every((delay) => delay < FAST_THRESHOLD);
-
+      ledOff(pass);
+      ledOff(fail);
       if (allFast) {
         console.log("Test Case 2 PASSED – all intervals below threshold");
         ledOn(pass, "lime");
@@ -279,9 +312,13 @@ document.addEventListener("DOMContentLoaded", () => {
   };
 
   const runTestCase3 = () => {
+    const { pass, fail } = testCaseLEDs[2];
+    statusRunning(statusLEDs);
+    testCaseInProgress(pass, fail, 300);
     const evaluateDecisionTable = ({ a, b, c }) => {
       const isPass = a === 0 && b === 1 && c === 1;
-      const { pass, fail } = testCaseLEDs[2];
+      ledOff(pass);
+      ledOff(fail);
       if (isPass) {
         ledOn(pass, "lime");
       } else {
@@ -317,6 +354,7 @@ document.addEventListener("DOMContentLoaded", () => {
       tempListeners.forEach(({ el, handler }) => {
         el?.removeEventListener("click", handler);
       });
+      statusIdle(statusLEDs);
 
       evaluateDecisionTable(inputState);
     }, inputWindow);
