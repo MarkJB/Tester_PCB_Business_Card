@@ -1,5 +1,8 @@
 import svgContent from "./assets/elements_overlay.svg?raw";
 
+let currentTestIndex = 0;
+const totalTestCases = 5;
+
 const ledOn = (element, colour = "red") => {
   element.style.fill = colour;
   element.style.filter = `drop-shadow(0 0 6px ${colour})`;
@@ -18,6 +21,16 @@ const isLEDOn = (element, expectedColour = "red") => {
 
 const isSystemReady = (statusLEDs) => {
   return isLEDOn(statusLEDs.rdy) && isLEDOn(statusLEDs.idle);
+};
+
+const statusRunning = (statusLEDs) => {
+  ledOff(statusLEDs.idle);
+  ledOn(statusLEDs.run);
+};
+
+const statusIdle = (statusLEDs) => {
+  ledOff(statusLEDs.run);
+  ledOn(statusLEDs.idle);
 };
 
 const flashLED = (
@@ -74,6 +87,7 @@ let activeFlashIntervals = [];
 
 const startBootSequence = (statusLEDs) => {
   if (!powerOn) return;
+  currentTestIndex = 0;
 
   const { pwr, init, rdy, run, idle } = statusLEDs;
 
@@ -89,8 +103,7 @@ const startBootSequence = (statusLEDs) => {
   const timeout = setTimeout(() => {
     if (!powerOn) return;
     ledOn(rdy);
-    ledOff(run);
-    ledOn(idle);
+    statusIdle(statusLEDs);
   }, initFlashDuration);
 
   bootSequenceTimeouts.push(timeout);
@@ -105,6 +118,7 @@ const stopBootSequence = (statusLEDs, testCaseLEDs) => {
 
   resetStatusLEDs(statusLEDs);
   resetTestCaseLEDs(testCaseLEDs);
+  currentTestIndex = 0;
 };
 
 const resetTestCaseLEDs = (testCaseLEDs) => {
@@ -133,62 +147,125 @@ document.addEventListener("DOMContentLoaded", () => {
 
   // Test case logic !!!
 
-  const handleStartTest = () => {
-    if (!isSystemReady(statusLEDs)) {
-      console.log("System not ready. Cannot start tests.");
-    } else {
-      console.log("Starting Test Case 1");
-      // Step 0: Reset test case LEDs
-      resetTestCaseLEDs(testCaseLEDs);
+  const runTestCase1 = () => {
+    console.log("Running Test Case 1");
+    statusRunning(statusLEDs);
 
-      // Step 1: Update status LEDs
-      ledOff(statusLEDs.idle);
-      ledOn(statusLEDs.run);
+    const requiredButtons = ["a", "b", "c"];
+    const pressedButtons = new Set();
 
-      // Step 2: Setup tracking
-      const requiredButtons = ["a", "b", "c"];
-      const pressedButtons = new Set();
+    const listeners = requiredButtons.map((key) => {
+      const handler = () => {
+        pressedButtons.add(key);
+        console.log(`Button ${key.toUpperCase()} registered`);
+      };
+      buttonInputs[key].addEventListener("click", handler);
+      return { key, handler };
+    });
 
-      // Step 3: Temporary listeners
-      const listeners = requiredButtons.map((key) => {
-        const handler = () => {
-          pressedButtons.add(key);
-          console.log(`Button ${key.toUpperCase()} registered`);
-        };
-        buttonInputs[key].addEventListener("click", handler);
-        return { key, handler };
+    setTimeout(() => {
+      listeners.forEach(({ key, handler }) => {
+        buttonInputs[key].removeEventListener("click", handler);
       });
 
-      // Step 4: Evaluate after 5 seconds
-      setTimeout(() => {
-        // Clean up listeners
-        listeners.forEach(({ key, handler }) => {
-          buttonInputs[key].removeEventListener("click", handler);
-        });
+      statusIdle(statusLEDs);
 
-        // Restore status LEDs
-        ledOff(statusLEDs.run);
-        ledOn(statusLEDs.idle);
+      const allPressed = requiredButtons.every((key) =>
+        pressedButtons.has(key)
+      );
+      const { pass, fail } = testCaseLEDs[0];
 
-        // Step 5: Evaluate result
-        const allPressed = requiredButtons.every((key) =>
-          pressedButtons.has(key)
-        );
-        const { pass, fail } = testCaseLEDs[0];
+      if (allPressed) {
+        console.log("Test Case 1 PASSED");
+        ledOn(pass, "lime");
+      } else {
+        console.log("Test Case 1 FAILED");
+        ledOn(fail, "red");
+      }
+    }, 5000);
+  };
 
-        if (allPressed) {
-          console.log("Test Case 1 PASSED");
-          ledOn(pass, "lime");
-        } else {
-          console.log("Test Case 1 FAILED");
-          ledOn(fail, "red");
-        }
-      }, 5000);
+  const runTestCase2 = () => {
+    console.log("Running Test Case 2 – Fast Interaction Test");
+    statusRunning(statusLEDs);
+
+    const pressTimes = [];
+    const FAST_THRESHOLD = 200; // ms
+
+    const handler = () => {
+      const now = Date.now();
+      pressTimes.push(now);
+      console.log(`Button B pressed at ${now}`);
+    };
+
+    buttonInputs.b.addEventListener("click", handler);
+
+    setTimeout(() => {
+      buttonInputs.b.removeEventListener("click", handler);
+      statusIdle(statusLEDs);
+
+      const { pass, fail } = testCaseLEDs[1];
+
+      if (pressTimes.length < 2) {
+        console.log("Test Case 2 FAILED – not enough presses");
+        ledOn(fail, "red");
+        return;
+      }
+
+      const intervals = [];
+      for (let i = 1; i < pressTimes.length; i++) {
+        intervals.push(pressTimes[i] - pressTimes[i - 1]);
+      }
+
+      const average =
+        intervals.reduce((sum, val) => sum + val, 0) / intervals.length;
+      console.log(`Intervals between presses: ${intervals.join(", ")} ms`);
+      console.log(`Average interval: ${average.toFixed(1)} ms`);
+
+      const allFast = intervals.every((delay) => delay < FAST_THRESHOLD);
+
+      if (allFast) {
+        console.log("Test Case 2 PASSED – all intervals below threshold");
+        ledOn(pass, "lime");
+      } else {
+        console.log("Test Case 2 FAILED – one or more intervals too slow");
+        ledOn(fail, "red");
+      }
+    }, 5000);
+  };
+
+  const runCurrentTestCase = () => {
+    if (!isSystemReady(statusLEDs)) {
+      console.log("System not ready. Cannot start tests.");
+      return;
+    }
+
+    const testFunctions = [
+      runTestCase1,
+      runTestCase2,
+      // Add runTestCase3, runTestCase4, runTestCase5 here
+    ];
+
+    if (currentTestIndex >= testFunctions.length) {
+      // All test cases completed - reset index and clear test case LEDs
+      currentTestIndex = 0;
+      resetTestCaseLEDs(testCaseLEDs);
+      console.log("All test cases completed. Resetting to first test case.");
+    }
+
+    testFunctions[currentTestIndex]();
+    currentTestIndex++;
+  };
+
+  const handleStartTest = () => {
+    if (powerOn) {
+      runCurrentTestCase();
     }
   };
 
   // Reset system logic
   const resetSystem = () => {
+    currentTestIndex = 0;
     // turn off test case LEDs
     resetTestCaseLEDs(testCaseLEDs);
     // Turn off all status LEDs
@@ -201,15 +278,13 @@ document.addEventListener("DOMContentLoaded", () => {
     }, 1100);
   };
 
-  //   powerOnSequence(statusLEDs);
-
-  // Buttons A–E
+  // Buttons Elements A–E
   const buttonInputs = ["a", "b", "c", "d", "e"].reduce((acc, key) => {
     acc[key] = document.getElementById(`button_input_${key}`);
     return acc;
   }, {});
 
-  // Test Case LEDs (pass/fail)
+  // Test Case LED Elements (pass/fail)
   const testCaseLEDs = Array.from({ length: 5 }, (_, i) => {
     const index = i + 1;
     return {
@@ -218,9 +293,9 @@ document.addEventListener("DOMContentLoaded", () => {
     };
   });
 
-  // Define custom functions for each button
+  // Button handler functions
   const handleButtonA = () => {
-    console.log("Button A logic");
+    console.log("Input Button A pressed");
     if (powerOn) {
       const interval = flashLED(statusLEDs.init, "red", 100, 200);
       activeFlashIntervals.push(interval);
@@ -228,7 +303,7 @@ document.addEventListener("DOMContentLoaded", () => {
   };
 
   const handleButtonB = () => {
-    console.log("Button B logic");
+    console.log("Input Button B pressed");
     if (powerOn) {
       const interval = flashLED(statusLEDs.init, "red", 100, 200);
       activeFlashIntervals.push(interval);
@@ -236,7 +311,7 @@ document.addEventListener("DOMContentLoaded", () => {
   };
 
   const handleButtonC = () => {
-    console.log("Button C logic");
+    console.log("Input Button C pressed");
     if (powerOn) {
       const interval = flashLED(statusLEDs.init, "red", 100, 200);
       activeFlashIntervals.push(interval);
@@ -244,15 +319,14 @@ document.addEventListener("DOMContentLoaded", () => {
   };
 
   const handleButtonD = () => {
-    console.log("Button D logic");
-    // Start tests
+    console.log("'START TEST' Button pressed");
     if (powerOn) {
       handleStartTest();
     }
   };
 
   const handleButtonE = () => {
-    console.log("Button E logic");
+    console.log("'RESET' button pressed");
     if (powerOn) {
       resetSystem();
     }
@@ -273,8 +347,6 @@ document.addEventListener("DOMContentLoaded", () => {
   });
 
   // Power switch logic
-  //   let powerOn = true;
-
   const togglePowerSwitch = () => {
     console.log("Toggling power switch");
     const thumb = document.getElementById("power_switch_thumb");
