@@ -135,6 +135,7 @@ const startBootSequence = (statusLEDs) => {
   ledOn(pwr);
 
   // Step 2: Flash init for 2 seconds
+  systemState.init = true;
   const initFlashDuration = 2000;
   const interval = flashLED(init, "red", 200, initFlashDuration);
   activeFlashIntervals.push(interval);
@@ -142,6 +143,9 @@ const startBootSequence = (statusLEDs) => {
   // Step 3: After init flash completes, light up rdy and idle
   const timeout = setTimeout(() => {
     if (!systemState.power) return;
+    systemState.init = false;
+    systemState.ready = true;
+    systemState.idle = true;
     ledOn(rdy);
     statusIdle(statusLEDs);
   }, initFlashDuration);
@@ -274,15 +278,60 @@ document.addEventListener("DOMContentLoaded", () => {
     }, 5000);
   };
 
+  const runTestCase3 = () => {
+    const evaluateDecisionTable = ({ a, b, c }) => {
+      const isPass = a === 0 && b === 1 && c === 1;
+      const { pass, fail } = testCaseLEDs[2];
+      if (isPass) {
+        ledOn(pass, "lime");
+      } else {
+        ledOn(fail, "red");
+      }
+
+      console.log(
+        `Test Case 3 Result → A:${a} B:${b} C:${c} → ${
+          isPass ? "PASS" : "FAIL"
+        }`
+      );
+    };
+
+    const inputState = { a: 0, b: 0, c: 0 };
+    const inputWindow = 5000;
+
+    const handleInput = (key) => {
+      if (!systemState.ready) return;
+      inputState[key] = 1;
+    };
+
+    // Bind temporary listeners
+    const tempListeners = ["a", "b", "c"].map((key) => {
+      const el = buttonInputs[key];
+      const handler = () => handleInput(key);
+      el?.addEventListener("click", handler);
+      return { el, handler };
+    });
+
+    // Timeout to evaluate and clean up
+    setTimeout(() => {
+      // Remove temporary listeners
+      tempListeners.forEach(({ el, handler }) => {
+        el?.removeEventListener("click", handler);
+      });
+
+      evaluateDecisionTable(inputState);
+    }, inputWindow);
+  };
+
   const runCurrentTestCase = () => {
     if (!isSystemReady()) {
-      console.log("System not ready. Cannot start tests.");
+      console.log("System not ready. Cannot start tests.", systemState);
       return;
     }
 
     const testFunctions = [
       runTestCase1,
       runTestCase2,
+      runTestCase3,
       // Add runTestCase3, runTestCase4, runTestCase5 here
     ];
 
@@ -391,7 +440,7 @@ document.addEventListener("DOMContentLoaded", () => {
   const togglePowerSwitch = () => {
     console.log("Toggling power switch");
     const thumb = document.getElementById("power_switch_thumb");
-    console.log("Thumb element:", thumb);
+
     if (!thumb) return;
 
     systemState.power = !systemState.power;
