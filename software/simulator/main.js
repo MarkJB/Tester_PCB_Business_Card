@@ -2,10 +2,14 @@ import svgContent from "./assets/elements_overlay.svg?raw";
 
 const ledOn = (element, colour = "red") => {
   element.style.fill = colour;
+  element.style.filter = `drop-shadow(0 0 6px ${colour})`;
+  element.style.transition = "fill 0.1s ease-in-out, filter 0.1s ease-in-out";
 };
 
 const ledOff = (element) => {
   element.style.fill = "white";
+  element.style.filter = "none";
+  element.style.transition = "fill 0.1s ease-in-out, filter 0.1s ease-in-out";
 };
 
 const isLEDOn = (element, expectedColour = "red") => {
