@@ -1,7 +1,14 @@
 import svgContent from "./assets/elements_overlay.svg?raw";
 
 let currentTestIndex = 0;
-const totalTestCases = 5;
+
+const systemState = {
+  power: false,
+  init: false,
+  ready: false,
+  idle: false,
+  running: false,
+};
 
 const ledOn = (element, colour = "red") => {
   element.style.fill = colour;
@@ -19,18 +26,48 @@ const isLEDOn = (element, expectedColour = "red") => {
   return element?.style.fill === expectedColour;
 };
 
-const isSystemReady = (statusLEDs) => {
-  return isLEDOn(statusLEDs.rdy) && isLEDOn(statusLEDs.idle);
+const startPulseLED = (ledElement, interval, colour = "red") => {
+  let isOn = false;
+
+  const pulse = setInterval(() => {
+    if (!systemState.power) {
+      clearInterval(pulse);
+      ledOff(ledElement);
+      return;
+    }
+
+    isOn ? ledOff(ledElement) : ledOn(ledElement, colour);
+    isOn = !isOn;
+  }, interval);
+
+  activeFlashIntervals.push(pulse);
+};
+
+const stopPulseLED = () => {
+  activeFlashIntervals.forEach(clearInterval);
+  activeFlashIntervals = [];
+};
+
+const isSystemReady = () => {
+  return systemState.ready && systemState.idle && !systemState.running;
 };
 
 const statusRunning = (statusLEDs) => {
-  ledOff(statusLEDs.idle);
-  ledOn(statusLEDs.run);
+  stopPulseLED(); // clears any previous intervals
+  ledOff(statusLEDs.idle); // ensure idle LED is off
+  startPulseLED(statusLEDs.run, 500); // fast pulse for active state
+
+  systemState.idle = true;
+  systemState.running = false;
 };
 
 const statusIdle = (statusLEDs) => {
+  stopPulseLED();
   ledOff(statusLEDs.run);
-  ledOn(statusLEDs.idle);
+  startPulseLED(statusLEDs.idle, 1500); // slow pulse for idle state
+
+  systemState.idle = true;
+  systemState.running = false;
 };
 
 const flashLED = (
@@ -41,7 +78,7 @@ const flashLED = (
 ) => {
   let elapsed = 0;
   const interval = setInterval(() => {
-    if (!powerOn) {
+    if (!systemState.power) {
       clearInterval(interval);
       ledOff(element);
       return;
@@ -75,18 +112,21 @@ const powerOnSequence = (statusLEDs) => {
     setTimeout(() => {
       ledOn(rdy);
       ledOff(run);
-      ledOn(idle);
+      startPulseLED(idle, 1500);
+      systemState.ready = true;
+      systemState.idle = true;
+      systemState.running = false;
     }, 2000);
   }, 500);
 };
 
 // Interuptable power-on sequence
-let powerOn = false;
+
 let bootSequenceTimeouts = [];
 let activeFlashIntervals = [];
 
 const startBootSequence = (statusLEDs) => {
-  if (!powerOn) return;
+  if (!systemState.power) return;
   currentTestIndex = 0;
 
   const { pwr, init, rdy, run, idle } = statusLEDs;
@@ -101,7 +141,7 @@ const startBootSequence = (statusLEDs) => {
 
   // Step 3: After init flash completes, light up rdy and idle
   const timeout = setTimeout(() => {
-    if (!powerOn) return;
+    if (!systemState.power) return;
     ledOn(rdy);
     statusIdle(statusLEDs);
   }, initFlashDuration);
@@ -235,7 +275,7 @@ document.addEventListener("DOMContentLoaded", () => {
   };
 
   const runCurrentTestCase = () => {
-    if (!isSystemReady(statusLEDs)) {
+    if (!isSystemReady()) {
       console.log("System not ready. Cannot start tests.");
       return;
     }
@@ -258,7 +298,7 @@ document.addEventListener("DOMContentLoaded", () => {
   };
 
   const handleStartTest = () => {
-    if (powerOn) {
+    if (systemState.power) {
       runCurrentTestCase();
     }
   };
@@ -266,6 +306,7 @@ document.addEventListener("DOMContentLoaded", () => {
   // Reset system logic
   const resetSystem = () => {
     currentTestIndex = 0;
+    stopPulseLED();
     // turn off test case LEDs
     resetTestCaseLEDs(testCaseLEDs);
     // Turn off all status LEDs
@@ -296,7 +337,7 @@ document.addEventListener("DOMContentLoaded", () => {
   // Button handler functions
   const handleButtonA = () => {
     console.log("Input Button A pressed");
-    if (powerOn) {
+    if (systemState.power) {
       const interval = flashLED(statusLEDs.init, "red", 100, 200);
       activeFlashIntervals.push(interval);
     }
@@ -304,7 +345,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
   const handleButtonB = () => {
     console.log("Input Button B pressed");
-    if (powerOn) {
+    if (systemState.power) {
       const interval = flashLED(statusLEDs.init, "red", 100, 200);
       activeFlashIntervals.push(interval);
     }
@@ -312,7 +353,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
   const handleButtonC = () => {
     console.log("Input Button C pressed");
-    if (powerOn) {
+    if (systemState.power) {
       const interval = flashLED(statusLEDs.init, "red", 100, 200);
       activeFlashIntervals.push(interval);
     }
@@ -320,14 +361,14 @@ document.addEventListener("DOMContentLoaded", () => {
 
   const handleButtonD = () => {
     console.log("'START TEST' Button pressed");
-    if (powerOn) {
+    if (systemState.power) {
       handleStartTest();
     }
   };
 
   const handleButtonE = () => {
     console.log("'RESET' button pressed");
-    if (powerOn) {
+    if (systemState.power) {
       resetSystem();
     }
   };
@@ -353,17 +394,17 @@ document.addEventListener("DOMContentLoaded", () => {
     console.log("Thumb element:", thumb);
     if (!thumb) return;
 
-    powerOn = !powerOn;
+    systemState.power = !systemState.power;
 
     thumb.setAttribute(
       "transform",
-      powerOn ? "matrix(1,0,0,1,0,0)" : "matrix(1,0,0,1,0,-40)"
+      systemState.power ? "matrix(1,0,0,1,0,0)" : "matrix(1,0,0,1,0,-40)"
     );
 
-    console.log(`Power ${powerOn ? "ON" : "OFF"}`);
+    console.log(`Power ${systemState.power ? "ON" : "OFF"}`);
 
     // Optional: trigger system reset or shutdown
-    if (powerOn) {
+    if (systemState.power) {
       startBootSequence(statusLEDs);
     } else {
       stopBootSequence(statusLEDs, testCaseLEDs);
