@@ -214,173 +214,180 @@ document.addEventListener("DOMContentLoaded", () => {
     {}
   );
 
-  // Test case logic !!!
+  // Test case assertion logic
+  const createTestResult = (passed, message = "", details = {}) => ({
+    passed,
+    message,
+    details,
+  });
 
-  const runTestCase1 = () => {
-    console.log("Running Test Case 1");
-    const { pass, fail } = testCaseLEDs[0];
-    statusRunning(statusLEDs);
-    testCaseInProgress(pass, fail, 300);
+  const assert = (condition, message) => {
+    if (!condition) throw new Error(message);
+  };
 
-    const requiredButtons = ["a", "b", "c"];
-    const pressedButtons = new Set();
+  const assertResult = (condition, message, details = {}) => {
+    try {
+      assert(condition, message);
+      return createTestResult(true, message, details);
+    } catch (err) {
+      return createTestResult(false, err.message, details);
+    }
+  };
 
-    const listeners = requiredButtons.map((key) => {
+  // Test Cases
+  const testCase1 = () => {
+    return new Promise((resolve) => {
+      const requiredButtons = ["a", "b", "c"];
+      const pressedButtons = new Set();
+
+      const listeners = requiredButtons.map((key) => {
+        const handler = () => pressedButtons.add(key);
+        buttonInputs[key].addEventListener("click", handler);
+        return { key, handler };
+      });
+
+      setTimeout(() => {
+        listeners.forEach(({ key, handler }) =>
+          buttonInputs[key].removeEventListener("click", handler)
+        );
+
+        const allPressed = requiredButtons.every((key) =>
+          pressedButtons.has(key)
+        );
+
+        resolve(
+          assertResult(allPressed, "All required buttons pressed", {
+            pressedButtons,
+          })
+        );
+      }, 5000);
+    });
+  };
+
+  const testCase2 = () => {
+    return new Promise((resolve) => {
+      const pressTimes = [];
+      const FAST_THRESHOLD = 200;
+
       const handler = () => {
-        pressedButtons.add(key);
-        console.log(`Button ${key.toUpperCase()} registered`);
+        const now = Date.now();
+        pressTimes.push(now);
+        console.log(`Button B pressed at ${now}`);
       };
-      buttonInputs[key].addEventListener("click", handler);
-      return { key, handler };
-    });
 
-    setTimeout(() => {
-      listeners.forEach(({ key, handler }) => {
-        buttonInputs[key].removeEventListener("click", handler);
+      buttonInputs.b.addEventListener("click", handler);
+
+      setTimeout(() => {
+        buttonInputs.b.removeEventListener("click", handler);
+
+        const intervals =
+          pressTimes.length > 1
+            ? pressTimes.slice(1).map((t, i) => t - pressTimes[i])
+            : [];
+
+        const enoughPresses = pressTimes.length >= 2;
+        const allFast = intervals.every((delay) => delay < FAST_THRESHOLD);
+
+        const conditionMet = enoughPresses && allFast;
+
+        let message = undefined;
+        if (!conditionMet) {
+          if (!enoughPresses) {
+            message = "Not enough presses";
+          } else if (!allFast) {
+            message = "One or more intervals too slow";
+          }
+        }
+
+        const result = assertResult(conditionMet, message, {
+          pressCount: pressTimes.length,
+          intervals,
+        });
+
+        resolve(result);
+      }, 5000);
+    });
+  };
+
+  const testCase3 = () => {
+    return new Promise((resolve) => {
+      const { pass, fail } = testCaseLEDs[2];
+      statusRunning(statusLEDs);
+      testCaseInProgress(pass, fail, 300);
+
+      const inputState = { a: 0, b: 0, c: 0 };
+      const requiredButtons = ["a", "b", "c"];
+      const inputWindow = 5000;
+
+      const handleInput = (key) => {
+        if (!systemState.ready) return;
+        inputState[key] = 1;
+      };
+
+      const listeners = requiredButtons.map((key) => {
+        const el = buttonInputs[key];
+        const handler = () => handleInput(key);
+        el?.addEventListener("click", handler);
+        return { el, handler };
       });
 
-      statusIdle(statusLEDs);
+      setTimeout(() => {
+        listeners.forEach(({ el, handler }) => {
+          el?.removeEventListener("click", handler);
+        });
+        statusIdle(statusLEDs);
 
-      const allPressed = requiredButtons.every((key) =>
-        pressedButtons.has(key)
-      );
+        const isPass =
+          inputState.a === 0 && inputState.b === 1 && inputState.c === 1;
 
-      // Now that we are flashing the current test case LEDs to show that
-      // which test is in progress, we need to turn off both test case LEDs
-      // before indicating pass/fail
-      ledOff(pass);
-      ledOff(fail);
-
-      if (allPressed) {
-        console.log("Test Case 1 PASSED");
-        ledOn(pass, "lime");
-      } else {
-        console.log("Test Case 1 FAILED");
-        ledOn(fail, "red");
-      }
-    }, 5000);
-  };
-
-  const runTestCase2 = () => {
-    console.log("Running Test Case 2 – Fast Interaction Test");
-    const { pass, fail } = testCaseLEDs[1];
-    statusRunning(statusLEDs);
-    testCaseInProgress(pass, fail, 300);
-
-    const pressTimes = [];
-    const FAST_THRESHOLD = 200; // ms
-
-    const handler = () => {
-      const now = Date.now();
-      pressTimes.push(now);
-      console.log(`Button B pressed at ${now}`);
-    };
-
-    buttonInputs.b.addEventListener("click", handler);
-
-    setTimeout(() => {
-      buttonInputs.b.removeEventListener("click", handler);
-      statusIdle(statusLEDs);
-
-      if (pressTimes.length < 2) {
-        console.log("Test Case 2 FAILED – not enough presses");
-        ledOn(fail, "red");
-        return;
-      }
-
-      const intervals = [];
-      for (let i = 1; i < pressTimes.length; i++) {
-        intervals.push(pressTimes[i] - pressTimes[i - 1]);
-      }
-
-      const average =
-        intervals.reduce((sum, val) => sum + val, 0) / intervals.length;
-      console.log(`Intervals between presses: ${intervals.join(", ")} ms`);
-      console.log(`Average interval: ${average.toFixed(1)} ms`);
-
-      const allFast = intervals.every((delay) => delay < FAST_THRESHOLD);
-      ledOff(pass);
-      ledOff(fail);
-      if (allFast) {
-        console.log("Test Case 2 PASSED – all intervals below threshold");
-        ledOn(pass, "lime");
-      } else {
-        console.log("Test Case 2 FAILED – one or more intervals too slow");
-        ledOn(fail, "red");
-      }
-    }, 5000);
-  };
-
-  const runTestCase3 = () => {
-    const { pass, fail } = testCaseLEDs[2];
-    statusRunning(statusLEDs);
-    testCaseInProgress(pass, fail, 300);
-    const evaluateDecisionTable = ({ a, b, c }) => {
-      const isPass = a === 0 && b === 1 && c === 1;
-      ledOff(pass);
-      ledOff(fail);
-      if (isPass) {
-        ledOn(pass, "lime");
-      } else {
-        ledOn(fail, "red");
-      }
-
-      console.log(
-        `Test Case 3 Result → A:${a} B:${b} C:${c} → ${
-          isPass ? "PASS" : "FAIL"
-        }`
-      );
-    };
-
-    const inputState = { a: 0, b: 0, c: 0 };
-    const inputWindow = 5000;
-
-    const handleInput = (key) => {
-      if (!systemState.ready) return;
-      inputState[key] = 1;
-    };
-
-    // Bind temporary listeners
-    const tempListeners = ["a", "b", "c"].map((key) => {
-      const el = buttonInputs[key];
-      const handler = () => handleInput(key);
-      el?.addEventListener("click", handler);
-      return { el, handler };
+        resolve(
+          assertResult(isPass, "Incorrect input pattern", {
+            inputState,
+          })
+        );
+      }, inputWindow);
     });
-
-    // Timeout to evaluate and clean up
-    setTimeout(() => {
-      // Remove temporary listeners
-      tempListeners.forEach(({ el, handler }) => {
-        el?.removeEventListener("click", handler);
-      });
-      statusIdle(statusLEDs);
-
-      evaluateDecisionTable(inputState);
-    }, inputWindow);
   };
 
+  // Test cases to run (in sequence)
+  const testFunctions = [testCase1, testCase2, testCase3];
+
+  // Test Case Runner
+  const runTestCase = async (testFn, testLEDs, statusLEDs) => {
+    statusRunning(statusLEDs);
+    testCaseInProgress(testLEDs.pass, testLEDs.fail, 300);
+
+    const result = await testFn();
+
+    statusIdle(statusLEDs);
+    ledOff(testLEDs.pass);
+    ledOff(testLEDs.fail);
+
+    if (result.passed) {
+      console.log(`✅ PASS: ${result.message}`);
+      ledOn(testLEDs.pass, "lime");
+    } else {
+      console.log(`❌ FAIL: ${result.message}`);
+      ledOn(testLEDs.fail, "red");
+    }
+  };
+
+  // Test Suite runner
   const runCurrentTestCase = () => {
     if (!isSystemReady()) {
       console.log("System not ready. Cannot start tests.", systemState);
       return;
     }
 
-    const testFunctions = [
-      runTestCase1,
-      runTestCase2,
-      runTestCase3,
-      // Add runTestCase3, runTestCase4, runTestCase5 here
-    ];
-
     if (currentTestIndex >= testFunctions.length) {
-      // All test cases completed - reset index and clear test case LEDs
       currentTestIndex = 0;
       resetTestCaseLEDs(testCaseLEDs);
       console.log("All test cases completed. Resetting to first test case.");
     }
 
-    testFunctions[currentTestIndex]();
+    const testFn = testFunctions[currentTestIndex];
+    const testLED = testCaseLEDs[currentTestIndex];
+    runTestCase(testFn, testLED, statusLEDs);
     currentTestIndex++;
   };
 
