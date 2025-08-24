@@ -22,6 +22,14 @@ const ledOff = (element) => {
   element.style.transition = "fill 0.1s ease-in-out, filter 0.1s ease-in-out";
 };
 
+const toggleLED = (element, colour = "red") => {
+  if (isLEDOn(element, colour)) {
+    ledOff(element);
+  } else {
+    ledOn(element, colour);
+  }
+};
+
 const isLEDOn = (element, expectedColour = "red") => {
   return element?.style.fill === expectedColour;
 };
@@ -44,7 +52,13 @@ const startPulseLED = (ledElement, interval, colour = "red") => {
 };
 
 const stopPulseLED = () => {
-  activeFlashIntervals.forEach(clearInterval);
+  activeFlashIntervals.forEach((entry) => {
+    if (typeof entry === "number") {
+      clearInterval(entry); // raw interval ID
+    } else if (entry && typeof entry.id === "number") {
+      clearInterval(entry.id); // wrapped object with .id
+    }
+  });
   activeFlashIntervals = [];
 };
 
@@ -97,24 +111,27 @@ const flashLED = (
 const testCaseInProgress = (passLED, failLED, interval = 500) => {
   let toggle = false;
 
-  const flash = setInterval(() => {
-    if (!systemState.running) {
-      clearInterval(flash);
-      ledOff(passLED);
-      ledOff(failLED);
-      return;
-    }
+  const flash = {
+    id: setInterval(() => {
+      if (!systemState.running) {
+        clearInterval(flash);
+        ledOff(passLED);
+        ledOff(failLED);
+        return;
+      }
 
-    if (toggle) {
-      ledOn(passLED, "lime");
-      ledOff(failLED);
-    } else {
-      ledOn(failLED, "red");
-      ledOff(passLED);
-    }
+      if (toggle) {
+        ledOn(passLED, "lime");
+        ledOff(failLED);
+      } else {
+        ledOn(failLED, "red");
+        ledOff(passLED);
+      }
 
-    toggle = !toggle;
-  }, interval);
+      toggle = !toggle;
+    }, interval),
+    source: "testCaseInProgress",
+  };
 
   activeFlashIntervals.push(flash);
 };
@@ -349,26 +366,102 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   };
 
+  const testCase4 = () => {
+    return new Promise((resolve) => {
+      const { pass, fail } = testCaseLEDs[3];
+
+      const inputWindow = 5000;
+      const pressCounts = { a: 0, b: 0, c: 0 };
+
+      const validRanges = {
+        a: (count) => count >= 1 && count <= 3,
+        b: (count) => count >= 5 && count <= 7,
+        c: (count) => count >= 2 && count <= 4,
+      };
+
+      const handlePress = (key) => {
+        if (!systemState.ready) return;
+        pressCounts[key] += 1;
+      };
+
+      const listeners = ["a", "b", "c"].map((key) => {
+        const el = buttonInputs[key];
+        const handler = () => handlePress(key);
+        el?.addEventListener("click", handler);
+        return { el, handler };
+      });
+
+      setTimeout(() => {
+        listeners.forEach(({ el, handler }) => {
+          el?.removeEventListener("click", handler);
+        });
+
+        const results = {};
+        let anyValid = false;
+
+        ["a", "b", "c"].forEach((key) => {
+          const count = pressCounts[key];
+          const isValid = validRanges[key](count);
+          results[key] = { count, isValid };
+
+          if (isValid) {
+            anyValid = true;
+          } else {
+          }
+        });
+
+        resolve(
+          assertResult(anyValid, "No valid inputs", {
+            pressCounts,
+            results,
+          })
+        );
+      }, inputWindow);
+    });
+  };
+
   // Test cases to run (in sequence)
-  const testFunctions = [testCase1, testCase2, testCase3];
+  const testFunctions = [testCase1, testCase2, testCase3, testCase4];
 
   // Test Case Runner
   const runTestCase = async (testFn, testLEDs, statusLEDs) => {
     statusRunning(statusLEDs);
     testCaseInProgress(testLEDs.pass, testLEDs.fail, 300);
 
-    const result = await testFn();
+    const onVisualCue = (cue) => {
+      switch (cue) {
+        case "FAIL_BLINK":
+          startPulseLED(testLEDs.fail, "red");
+          break;
+        case "STOP_BLINK":
+          stopPulseLED(testLEDs.fail);
+          break;
+        case "PASS":
+          ledOn(testLEDs.pass, "lime");
+          break;
+        case "FAIL":
+          ledOn(testLEDs.fail, "red");
+          break;
+        case "OFF":
+          ledOff(testLEDs.pass);
+          ledOff(testLEDs.fail);
+          break;
+        default:
+          console.warn(`Unknown visual cie: ${cue}`);
+      }
+    };
+
+    const result = await testFn({ onVisualCue });
 
     statusIdle(statusLEDs);
-    ledOff(testLEDs.pass);
-    ledOff(testLEDs.fail);
+    onVisualCue("OFF");
 
     if (result.passed) {
       console.log(`✅ PASS: ${result.message}`);
-      ledOn(testLEDs.pass, "lime");
+      onVisualCue("PASS");
     } else {
       console.log(`❌ FAIL: ${result.message}`);
-      ledOn(testLEDs.fail, "red");
+      onVisualCue("FAIL");
     }
   };
 
