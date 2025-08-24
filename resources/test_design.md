@@ -150,12 +150,26 @@ And the system evaluates each input independently against its valid range
 #### Scenario: System transitions through unlock states based on input sequence
 
 ```gherkin
-Given the system is idle and ready to begin the unlock test
-When the user presses buttons within a 5-second window
+Given the the unlock test begins
+When the user presses buttons within the test time window (10 seconds)
 And the input sequence matches A → B → C → B → A
 Then the system transitions through INIT, STEP_1, STEP_2, STEP_3, and STEP_4
 And the system enters the PASS state after the final input
-And the LED feedback reflects each state transition
+And the system is 'unlocked'
+
+Given the system is ready to begin the unlock test
+When the user enters an incorrect button unlock sequence (same number of button presses as the correct code)
+Then the system enters a RECOVERY state
+And the current test case LEDs stop blinking alternately
+And the current test case FAIL LEDs blinks rapidly
+And the user has a 5 second time to reset the count by pressing the c button twice
+
+Given the system is in the RECOVERY state
+When the user clears the RECOVERY state by pressing the c button twice
+Then the RECOVERY timeout is cancelled and the test timeout is reset
+And the rapidly blinking FAIL LED is cleared
+And the current test case LEDs start blinking alternatley
+And the user can make another attempt at entering the correct code.
 ```
 
 ### 🔖 Type
