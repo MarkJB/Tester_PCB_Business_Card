@@ -252,22 +252,32 @@ document.addEventListener("DOMContentLoaded", () => {
   };
 
   // Test Cases
-  const testCase1 = () => {
-    return new Promise((resolve) => {
-      const requiredButtons = ["a", "b", "c"];
-      const pressedButtons = new Set();
+  const testCase1 = ({ setup, teardown, onVisualCue }) => {
+    const requiredButtons = ["a", "b", "c"];
+    const pressedButtons = new Set();
+    const listeners = [];
 
-      const listeners = requiredButtons.map((key) => {
+    // --- Setup: attach listeners ---
+    setup(async () => {
+      requiredButtons.forEach((key) => {
         const handler = () => pressedButtons.add(key);
         buttonInputs[key].addEventListener("click", handler);
-        return { key, handler };
+        listeners.push({ key, handler });
       });
+      console.log("🔧 TestCase1 setup: listeners attached");
+    });
 
+    // --- Teardown: remove listeners ---
+    teardown(async () => {
+      listeners.forEach(({ key, handler }) =>
+        buttonInputs[key].removeEventListener("click", handler)
+      );
+      console.log("🧹 TestCase1 teardown: listeners removed");
+    });
+
+    // --- Main promise body ---
+    return new Promise((resolve) => {
       setTimeout(() => {
-        listeners.forEach(({ key, handler }) =>
-          buttonInputs[key].removeEventListener("click", handler)
-        );
-
         const allPressed = requiredButtons.every((key) =>
           pressedButtons.has(key)
         );
@@ -281,22 +291,76 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   };
 
-  const testCase2 = () => {
-    return new Promise((resolve) => {
-      const pressTimes = [];
-      const FAST_THRESHOLD = 200;
+  //     return new Promise((resolve) => {
+  //       const pressTimes = [];
+  //       const FAST_THRESHOLD = 200;
 
-      const handler = () => {
+  //       const handler = () => {
+  //         const now = Date.now();
+  //         pressTimes.push(now);
+  //         console.log(`Button B pressed at ${now}`);
+  //       };
+
+  //       buttonInputs.b.addEventListener("click", handler);
+
+  //       setTimeout(() => {
+  //         buttonInputs.b.removeEventListener("click", handler);
+
+  //         const intervals =
+  //           pressTimes.length > 1
+  //             ? pressTimes.slice(1).map((t, i) => t - pressTimes[i])
+  //             : [];
+
+  //         const enoughPresses = pressTimes.length >= 2;
+  //         const allFast = intervals.every((delay) => delay < FAST_THRESHOLD);
+
+  //         const conditionMet = enoughPresses && allFast;
+
+  //         let message = undefined;
+  //         if (!conditionMet) {
+  //           if (!enoughPresses) {
+  //             message = "Not enough presses";
+  //           } else if (!allFast) {
+  //             message = "One or more intervals too slow";
+  //           }
+  //         }
+
+  //         const result = assertResult(conditionMet, message, {
+  //           pressCount: pressTimes.length,
+  //           intervals,
+  //         });
+
+  //         resolve(result);
+  //       }, 5000);
+  //     });
+  //   };
+  const testCase2 = ({ setup, teardown, onVisualCue }) => {
+    const pressTimes = [];
+    const FAST_THRESHOLD = 200;
+    let handler; // we'll assign in setup
+
+    // --- Setup: attach button listener ---
+    setup(async () => {
+      handler = () => {
         const now = Date.now();
         pressTimes.push(now);
         console.log(`Button B pressed at ${now}`);
       };
-
       buttonInputs.b.addEventListener("click", handler);
+      console.log("🔧 TestCase2 setup: listener for Button B attached");
+    });
 
-      setTimeout(() => {
+    // --- Teardown: remove button listener ---
+    teardown(async () => {
+      if (handler) {
         buttonInputs.b.removeEventListener("click", handler);
+        console.log("🧹 TestCase2 teardown: listener for Button B removed");
+      }
+    });
 
+    // --- Main test body: evaluate press timing ---
+    return new Promise((resolve) => {
+      setTimeout(() => {
         const intervals =
           pressTimes.length > 1
             ? pressTimes.slice(1).map((t, i) => t - pressTimes[i])
@@ -307,7 +371,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
         const conditionMet = enoughPresses && allFast;
 
-        let message = undefined;
+        let message;
         if (!conditionMet) {
           if (!enoughPresses) {
             message = "Not enough presses";
@@ -316,44 +380,48 @@ document.addEventListener("DOMContentLoaded", () => {
           }
         }
 
-        const result = assertResult(conditionMet, message, {
-          pressCount: pressTimes.length,
-          intervals,
-        });
-
-        resolve(result);
+        resolve(
+          assertResult(conditionMet, message, {
+            pressCount: pressTimes.length,
+            intervals,
+          })
+        );
       }, 5000);
     });
   };
 
-  const testCase3 = () => {
-    return new Promise((resolve) => {
-      const { pass, fail } = testCaseLEDs[2];
-      statusRunning(statusLEDs);
-      testCaseInProgress(pass, fail, 300);
+  const testCase3 = ({ setup, teardown, onVisualCue }) => {
+    const inputState = { a: 0, b: 0, c: 0 };
+    const requiredButtons = ["a", "b", "c"];
+    const inputWindow = 5000;
+    const listeners = [];
 
-      const inputState = { a: 0, b: 0, c: 0 };
-      const requiredButtons = ["a", "b", "c"];
-      const inputWindow = 5000;
-
-      const handleInput = (key) => {
-        if (!systemState.ready) return;
-        inputState[key] = 1;
-      };
-
-      const listeners = requiredButtons.map((key) => {
+    // --- Setup: start LED indicators and attach listeners ---
+    setup(async () => {
+      requiredButtons.forEach((key) => {
         const el = buttonInputs[key];
-        const handler = () => handleInput(key);
+        const handler = () => {
+          if (!systemState.ready) return;
+          inputState[key] = 1;
+        };
         el?.addEventListener("click", handler);
-        return { el, handler };
+        listeners.push({ el, handler });
       });
 
-      setTimeout(() => {
-        listeners.forEach(({ el, handler }) => {
-          el?.removeEventListener("click", handler);
-        });
-        statusIdle(statusLEDs);
+      console.log("🔧 TestCase3 setup: listeners attached for A, B, C");
+    });
 
+    // --- Teardown: remove listeners and reset status LEDs ---
+    teardown(async () => {
+      listeners.forEach(({ el, handler }) => {
+        el?.removeEventListener("click", handler);
+      });
+      console.log("🧹 TestCase3 teardown: listeners removed");
+    });
+
+    // --- Main body: wait window and evaluate pattern ---
+    return new Promise((resolve) => {
+      setTimeout(() => {
         const isPass =
           inputState.a === 0 && inputState.b === 1 && inputState.c === 1;
 
@@ -366,36 +434,45 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   };
 
-  const testCase4 = () => {
-    return new Promise((resolve) => {
-      const { pass, fail } = testCaseLEDs[3];
+  const testCase4 = ({ setup, teardown, onVisualCue }) => {
+    const inputWindow = 5000;
+    const pressCounts = { a: 0, b: 0, c: 0 };
+    const listeners = [];
 
-      const inputWindow = 5000;
-      const pressCounts = { a: 0, b: 0, c: 0 };
+    const validRanges = {
+      a: (count) => count >= 1 && count <= 3,
+      b: (count) => count >= 5 && count <= 7,
+      c: (count) => count >= 2 && count <= 4,
+    };
 
-      const validRanges = {
-        a: (count) => count >= 1 && count <= 3,
-        b: (count) => count >= 5 && count <= 7,
-        c: (count) => count >= 2 && count <= 4,
-      };
+    const handlePress = (key) => {
+      if (!systemState.ready) return;
+      pressCounts[key] += 1;
+    };
 
-      const handlePress = (key) => {
-        if (!systemState.ready) return;
-        pressCounts[key] += 1;
-      };
-
-      const listeners = ["a", "b", "c"].map((key) => {
+    // --- Setup: attach listeners ---
+    setup(async () => {
+      ["a", "b", "c"].forEach((key) => {
         const el = buttonInputs[key];
         const handler = () => handlePress(key);
         el?.addEventListener("click", handler);
-        return { el, handler };
+        listeners.push({ el, handler });
       });
 
-      setTimeout(() => {
-        listeners.forEach(({ el, handler }) => {
-          el?.removeEventListener("click", handler);
-        });
+      console.log("🔧 TestCase4 setup: listeners attached for A, B, C");
+    });
 
+    // --- Teardown: remove listeners and idle LEDs ---
+    teardown(async () => {
+      listeners.forEach(({ el, handler }) => {
+        el?.removeEventListener("click", handler);
+      });
+      console.log("🧹 TestCase4 teardown: listeners removed");
+    });
+
+    // --- Main body: wait and evaluate valid ranges ---
+    return new Promise((resolve) => {
+      setTimeout(() => {
         const results = {};
         let anyValid = false;
 
@@ -406,7 +483,6 @@ document.addEventListener("DOMContentLoaded", () => {
 
           if (isValid) {
             anyValid = true;
-          } else {
           }
         });
 
@@ -425,6 +501,14 @@ document.addEventListener("DOMContentLoaded", () => {
 
   // Test Case Runner
   const runTestCase = async (testFn, testLEDs, statusLEDs) => {
+    // Fresh scope for this single test
+    const setups = [];
+    const teardowns = [];
+    const fixtureAPI = {
+      setup: (fn) => setups.push(fn),
+      teardown: (fn) => teardowns.push(fn),
+    };
+
     statusRunning(statusLEDs);
     testCaseInProgress(testLEDs.pass, testLEDs.fail, 300);
 
@@ -447,21 +531,35 @@ document.addEventListener("DOMContentLoaded", () => {
           ledOff(testLEDs.fail);
           break;
         default:
-          console.warn(`Unknown visual cie: ${cue}`);
+          console.warn(`Unknown visual cue: ${cue}`);
       }
     };
 
-    const result = await testFn({ onVisualCue });
+    try {
+      // Call testFn once to register hooks + get main body promise
+      const promise = testFn({ ...fixtureAPI, onVisualCue });
 
-    statusIdle(statusLEDs);
-    onVisualCue("OFF");
+      // Run setups now
+      for (const fn of setups) await fn();
 
-    if (result.passed) {
-      console.log(`✅ PASS: ${result.message}`);
-      onVisualCue("PASS");
-    } else {
-      console.log(`❌ FAIL: ${result.message}`);
-      onVisualCue("FAIL");
+      // Await main test logic
+      const result = await promise;
+
+      statusIdle(statusLEDs);
+      onVisualCue("OFF");
+
+      if (result.passed) {
+        console.log(`✅ PASS: ${result.message}`);
+        onVisualCue("PASS");
+      } else {
+        console.log(`❌ FAIL: ${result.message}`);
+        onVisualCue("FAIL");
+      }
+
+      return result;
+    } finally {
+      // Run teardowns even if test fails/errors
+      for (const fn of teardowns) await fn();
     }
   };
 
