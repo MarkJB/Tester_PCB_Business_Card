@@ -1,8 +1,39 @@
-
 import { assertResult } from "./utils.js";
-// ...existing code...
 
-export const testCase2 = ({ setup, teardown, onVisualCue }) => {
+// All test cases now accept a `page` argument for DOM access
+export const testCase1 = ({ setup, teardown, page }) => {
+  const requiredButtons = ["a", "b", "c"];
+  const pressedButtons = new Set();
+  const listeners = [];
+  setup(async () => {
+    requiredButtons.forEach((key) => {
+      const handler = () => pressedButtons.add(key);
+      page.buttonInputs[key].addEventListener("click", handler);
+      listeners.push({ key, handler });
+    });
+    console.log("🔧 TestCase1 setup: listeners attached");
+  });
+  teardown(async () => {
+    listeners.forEach(({ key, handler }) =>
+      page.buttonInputs[key].removeEventListener("click", handler)
+    );
+    console.log("🧹 TestCase1 teardown: listeners removed");
+  });
+  return new Promise((resolve) => {
+    setTimeout(() => {
+      const allPressed = requiredButtons.every((key) =>
+        pressedButtons.has(key)
+      );
+      resolve(
+        assertResult(allPressed, "All required buttons pressed", {
+          pressedButtons,
+        })
+      );
+    }, 5000);
+  });
+};
+
+export const testCase2 = ({ setup, teardown, page }) => {
   const pressTimes = [];
   const FAST_THRESHOLD = 200;
   let handler;
@@ -12,12 +43,12 @@ export const testCase2 = ({ setup, teardown, onVisualCue }) => {
       pressTimes.push(now);
       console.log(`Button B pressed at ${now}`);
     };
-    buttonInputs.b.addEventListener("click", handler);
+    page.buttonInputs.b.addEventListener("click", handler);
     console.log("🔧 TestCase2 setup: listener for Button B attached");
   });
   teardown(async () => {
     if (handler) {
-      buttonInputs.b.removeEventListener("click", handler);
+      page.buttonInputs.b.removeEventListener("click", handler);
       console.log("🧹 TestCase2 teardown: listener for Button B removed");
     }
   });
@@ -48,16 +79,16 @@ export const testCase2 = ({ setup, teardown, onVisualCue }) => {
   });
 };
 
-export const testCase3 = ({ setup, teardown, onVisualCue }) => {
+export const testCase3 = ({ setup, teardown, page }) => {
   const inputState = { a: 0, b: 0, c: 0 };
   const requiredButtons = ["a", "b", "c"];
   const inputWindow = 5000;
   const listeners = [];
   setup(async () => {
     requiredButtons.forEach((key) => {
-      const el = buttonInputs[key];
+      const el = page.buttonInputs[key];
       const handler = () => {
-        if (!systemState.ready) return;
+        if (!window.systemState?.ready) return;
         inputState[key] = 1;
       };
       el?.addEventListener("click", handler);
@@ -84,7 +115,7 @@ export const testCase3 = ({ setup, teardown, onVisualCue }) => {
   });
 };
 
-export const testCase4 = ({ setup, teardown, onVisualCue }) => {
+export const testCase4 = ({ setup, teardown, page }) => {
   const inputWindow = 5000;
   const pressCounts = { a: 0, b: 0, c: 0 };
   const listeners = [];
@@ -94,12 +125,12 @@ export const testCase4 = ({ setup, teardown, onVisualCue }) => {
     c: (count) => count >= 2 && count <= 4,
   };
   const handlePress = (key) => {
-    if (!systemState.ready) return;
+    if (!window.systemState?.ready) return;
     pressCounts[key] += 1;
   };
   setup(async () => {
     ["a", "b", "c"].forEach((key) => {
-      const el = buttonInputs[key];
+      const el = page.buttonInputs[key];
       const handler = () => handlePress(key);
       el?.addEventListener("click", handler);
       listeners.push({ el, handler });

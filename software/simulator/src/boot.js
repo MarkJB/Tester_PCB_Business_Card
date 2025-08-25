@@ -1,9 +1,15 @@
-// Boot sequence and power logic for the simulator
-import { ledOn, ledOff, startPulseLED, stopPulseLED, flashLED } from "./leds.js";
+import {
+  ledOn,
+  ledOff,
+  startPulseLED,
+  flashLED,
+  activeFlashIntervals,
+  resetTestCaseLEDs,
+  resetStatusLEDs,
+} from "./leds.js";
 import { systemState } from "./state.js";
 
 let bootSequenceTimeouts = [];
-let activeFlashIntervals = [];
 
 export const powerOnSequence = (statusLEDs) => {
   const { pwr, init, rdy, run, idle } = statusLEDs;
@@ -48,34 +54,3 @@ export const stopBootSequence = (statusLEDs, testCaseLEDs) => {
   resetStatusLEDs(statusLEDs);
   resetTestCaseLEDs(testCaseLEDs);
 };
-
-export const resetTestCaseLEDs = (testCaseLEDs) => {
-  testCaseLEDs.forEach(({ pass, fail }) => {
-    ledOff(pass);
-    ledOff(fail);
-  });
-};
-
-export const resetStatusLEDs = (statusLEDs) => {
-  Object.values(statusLEDs).forEach(ledOff);
-};
-// Boot sequence and power logic for the simulator
-import { ledOn, ledOff, startPulseLED, stopPulseLED } from "./leds.js";
-import { systemState } from "./state.js";
-
-let bootSequenceTimeouts = [];
-let activeFlashIntervals = [];
-
-export const startBootSequence = (statusLEDs) => {
-  if (!systemState.power) return;
-  // ...existing code...
-  const { pwr, init, rdy, run, idle } = statusLEDs;
-  ledOn(pwr);
-  systemState.init = true;
-  const initFlashDuration = 2000;
-  // ...existing code for flashing and timeouts...
-  const timeout = setTimeout(() => {
-    if (!systemState.power) return;
-    systemState.init = false;
-    systemState.ready = true;
-

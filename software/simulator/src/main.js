@@ -1,119 +1,26 @@
 import svgContent from "../assets/elements_overlay.svg?raw";
+import { Page } from "./page.js";
 
-import { ledOn, ledOff, toggleLED, isLEDOn } from "./leds.js";
+import {
+  ledOn,
+  ledOff,
+  startPulseLED,
+  stopPulseLED,
+  flashLED,
+  statusRunning,
+  statusIdle,
+  testCaseInProgress,
+  activeFlashIntervals,
+} from "./leds.js";
 import { systemState, isSystemReady } from "./state.js";
 import {
-  testCase1,
-  testCase2,
-  testCase3,
-  testCase4,
-  testFunctions,
-} from "./testCases.js";
-import { createTestResult, assert, assertResult } from "./utils.js";
+  powerOnSequence,
+  startBootSequence,
+  stopBootSequence,
+} from "./boot.js";
+import { testFunctions } from "./testCases.js";
 
 let currentTestIndex = 0;
-
-const startPulseLED = (ledElement, interval, colour = "red") => {
-  let isOn = false;
-
-  const pulse = setInterval(() => {
-    if (!systemState.power) {
-      clearInterval(pulse);
-      ledOff(ledElement);
-      return;
-    }
-
-    isOn ? ledOff(ledElement) : ledOn(ledElement, colour);
-    isOn = !isOn;
-  }, interval);
-
-  activeFlashIntervals.push(pulse);
-};
-
-const stopPulseLED = () => {
-  activeFlashIntervals.forEach((entry) => {
-    if (typeof entry === "number") {
-      clearInterval(entry); // raw interval ID
-    } else if (entry && typeof entry.id === "number") {
-      clearInterval(entry.id); // wrapped object with .id
-    }
-  });
-  activeFlashIntervals = [];
-};
-
-const isSystemReady = () => {
-  return systemState.ready && systemState.idle && !systemState.running;
-};
-
-const statusRunning = (statusLEDs) => {
-  stopPulseLED(); // clears any previous intervals
-  ledOff(statusLEDs.idle); // ensure idle LED is off
-  startPulseLED(statusLEDs.run, 500); // fast pulse for active state
-
-  systemState.idle = false;
-  systemState.running = true;
-};
-
-const statusIdle = (statusLEDs) => {
-  stopPulseLED();
-  ledOff(statusLEDs.run);
-  startPulseLED(statusLEDs.idle, 1500); // slow pulse for idle state
-
-  systemState.idle = true;
-  systemState.running = false;
-};
-
-const flashLED = (
-  element,
-  colour = "lime",
-  frequency = 100,
-  duration = 500
-) => {
-  let elapsed = 0;
-  const interval = setInterval(() => {
-    if (!systemState.power) {
-      clearInterval(interval);
-      ledOff(element);
-      return;
-    }
-
-    element.style.fill === "white" ? ledOn(element, colour) : ledOff(element);
-    elapsed += frequency;
-    if (elapsed >= duration) {
-      clearInterval(interval);
-      ledOff(element);
-    }
-  }, frequency);
-  return interval;
-};
-
-const testCaseInProgress = (passLED, failLED, interval = 500) => {
-  let toggle = false;
-
-  const flash = {
-    id: setInterval(() => {
-      if (!systemState.running) {
-        clearInterval(flash);
-        ledOff(passLED);
-        ledOff(failLED);
-        return;
-      }
-
-      if (toggle) {
-        ledOn(passLED, "lime");
-        ledOff(failLED);
-      } else {
-        ledOn(failLED, "red");
-        ledOff(passLED);
-      }
-
-      toggle = !toggle;
-    }, interval),
-    source: "testCaseInProgress",
-  };
-
-  activeFlashIntervals.push(flash);
-};
 
 // Helper to get LED rect inside group
 const getLEDRect = (id) => {
@@ -123,11 +30,12 @@ const getLEDRect = (id) => {
 
 // Power-on sequence
 
-import { powerOnSequence, startBootSequence, stopBootSequence, resetTestCaseLEDs, resetStatusLEDs } from "./boot.js";
-
 document.addEventListener("DOMContentLoaded", () => {
   const wrapper = document.getElementById("sim-wrapper");
   wrapper.innerHTML = svgContent;
+
+  // Initialize Page Object Model
+  const page = new Page();
 
   // Status LEDs
   const statusLEDs = ["pwr", "init", "rdy", "run", "idle"].reduce(
@@ -138,9 +46,7 @@ document.addEventListener("DOMContentLoaded", () => {
     {}
   );
 
-
   // Assertion utilities
-  import { createTestResult, assert, assertResult } from "./utils.js";
 
   // Test Case Runner
   const runTestCase = async (testFn, testLEDs, statusLEDs) => {
@@ -150,6 +56,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const fixtureAPI = {
       setup: (fn) => setups.push(fn),
       teardown: (fn) => teardowns.push(fn),
+      page, // pass the page object to test cases
     };
 
     statusRunning(statusLEDs);
