@@ -9,7 +9,7 @@ test.describe("Simulator Test Cases", () => {
     const page = await ctx.newPage();
     sim = new SimulatorPage(page);
 
-    await page.goto("http://localhost:5173");
+    await page.goto("/");
     await sim.powerOn();
   });
 
