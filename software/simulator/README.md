@@ -6,7 +6,9 @@ Designed in collaboration with Co-pilot - I don't think I'd have been able to sp
 
 The code isn't perfect - the architecture leaves a lot to be desired but its ok for a quick tool that I can play with while I wait for the hardware to be made and shipped (I still have to assemble it as well).
 
-This verison currently only implements the first test (Test Case 1: Button Functionality Check - Smoke / Sanity Test) for now. I plan to add the other test cases so I can try those out as well.
+As of [468de84](https://github.com/MarkJB/Tester_PCB_Business_Card/commit/468de848f006198b3b1d71a0aeb5f23d9f56195a) the first 4 tests have been implemented. Along the way I've done a fair bit more work on this than originally intended. There is now a proto test runner with setup and teardown. This was done off the back of discovering that test case 5 is quite difficult to implement because I want to provide an intermediate state for the test result. More on that when I commit the fully working version.
+
+I've also spent some time creating Playwright tests and adding a workflow to build, test and deploy the simulator to github pages. You can test out [the simulator here](https://markjb.github.io/Tester_PCB_Business_Card/)
 
 ![Simulator Demo](./assets/tester_pcb_business_card_simulator.gif)  
 _Animated preview of the simulator in action - Power on/off, system init, reset, start test, restart test_
