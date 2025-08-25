@@ -1,4 +1,5 @@
 import { assertResult } from "./utils.js";
+import { systemState } from "./state.js";
 
 // All test cases now accept a `page` argument for DOM access
 export const testCase1 = ({ setup, teardown, page }) => {
@@ -88,7 +89,7 @@ export const testCase3 = ({ setup, teardown, page }) => {
     requiredButtons.forEach((key) => {
       const el = page.buttonInputs[key];
       const handler = () => {
-        if (!window.systemState?.ready) return;
+        if (!systemState?.ready) return;
         inputState[key] = 1;
       };
       el?.addEventListener("click", handler);
@@ -125,7 +126,7 @@ export const testCase4 = ({ setup, teardown, page }) => {
     c: (count) => count >= 2 && count <= 4,
   };
   const handlePress = (key) => {
-    if (!window.systemState?.ready) return;
+    if (!systemState?.ready) return;
     pressCounts[key] += 1;
   };
   setup(async () => {

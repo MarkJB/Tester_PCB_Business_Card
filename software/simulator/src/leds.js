@@ -1,12 +1,29 @@
 import { systemState } from "./state.js";
 
 // Pulse and flash helpers
-export let activeFlashIntervals = [];
+let _activeFlashIntervals = [];
+export const getActiveFlashIntervals = () => {
+  return _activeFlashIntervals;
+};
+export const setActiveFlashIntervals = (val) => {
+  _activeFlashIntervals = val;
+};
+
+export const clearActiveFlashIntervals = () => {
+  _activeFlashIntervals.forEach((entry) => {
+    if (typeof entry === "number") {
+      clearInterval(entry);
+    } else if (entry && typeof entry.id === "number") {
+      clearInterval(entry.id);
+    }
+  });
+  _activeFlashIntervals = [];
+};
 
 export const startPulseLED = (ledElement, interval, colour = "red") => {
   let isOn = false;
   const pulse = setInterval(() => {
-    if (!window.systemState?.power) {
+    if (!systemState?.power) {
       clearInterval(pulse);
       ledOff(ledElement);
       return;
@@ -14,18 +31,11 @@ export const startPulseLED = (ledElement, interval, colour = "red") => {
     isOn ? ledOff(ledElement) : ledOn(ledElement, colour);
     isOn = !isOn;
   }, interval);
-  activeFlashIntervals.push(pulse);
+  _activeFlashIntervals.push(pulse);
 };
 
 export const stopPulseLED = () => {
-  activeFlashIntervals.forEach((entry) => {
-    if (typeof entry === "number") {
-      clearInterval(entry);
-    } else if (entry && typeof entry.id === "number") {
-      clearInterval(entry.id);
-    }
-  });
-  activeFlashIntervals = [];
+  clearActiveFlashIntervals();
 };
 // LED control functions for the simulator
 
@@ -54,7 +64,7 @@ export const testCaseInProgress = (passLED, failLED, interval = 500) => {
     source: "testCaseInProgress",
   };
 
-  activeFlashIntervals.push(flash);
+  _activeFlashIntervals.push(flash);
 };
 
 export const ledOn = (element, colour = "red") => {
@@ -107,8 +117,8 @@ export const isLEDOn = (element, expectedColour = "red") => {
 
 export const statusRunning = (statusLEDs) => {
   stopPulseLED(); // clears any previous intervals
-  ledOff(statusLEDs.idle); // ensure idle LED is off
-  startPulseLED(statusLEDs.run, 500); // fast pulse for active state
+  if (statusLEDs.idle) ledOff(statusLEDs.idle); // ensure idle LED is off
+  if (statusLEDs.run) startPulseLED(statusLEDs.run, 500); // fast pulse for active state
 
   systemState.idle = false;
   systemState.running = true;
@@ -116,14 +126,15 @@ export const statusRunning = (statusLEDs) => {
 
 export const statusIdle = (statusLEDs) => {
   stopPulseLED();
-  ledOff(statusLEDs.run);
-  startPulseLED(statusLEDs.idle, 1500); // slow pulse for idle state
+  if (statusLEDs.run) ledOff(statusLEDs.run);
+  if (statusLEDs.idle) startPulseLED(statusLEDs.idle, 1500); // slow pulse for idle state
 
   systemState.idle = true;
   systemState.running = false;
 };
 
 export const resetTestCaseLEDs = (testCaseLEDs) => {
+  stopPulseLED(); // clears any previous intervals
   testCaseLEDs.forEach(({ pass, fail }) => {
     ledOff(pass);
     ledOff(fail);

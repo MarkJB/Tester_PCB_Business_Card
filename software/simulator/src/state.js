@@ -6,6 +6,8 @@ export const systemState = {
   ready: false,
   idle: false,
   running: false,
+  currentTestIndex: 0,
+  testRunId: 0,
 };
 
 export const isSystemReady = () => {

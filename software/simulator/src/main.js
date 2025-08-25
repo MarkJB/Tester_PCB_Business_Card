@@ -10,17 +10,12 @@ import {
   statusRunning,
   statusIdle,
   testCaseInProgress,
-  activeFlashIntervals,
+  resetTestCaseLEDs,
+  getActiveFlashIntervals,
 } from "./leds.js";
 import { systemState, isSystemReady } from "./state.js";
-import {
-  powerOnSequence,
-  startBootSequence,
-  stopBootSequence,
-} from "./boot.js";
+import { startBootSequence, stopBootSequence, resetSystem } from "./boot.js";
 import { testFunctions } from "./testCases.js";
-
-let currentTestIndex = 0;
 
 // Helper to get LED rect inside group
 const getLEDRect = (id) => {
@@ -46,11 +41,15 @@ document.addEventListener("DOMContentLoaded", () => {
     {}
   );
 
+  console.log(statusLEDs);
+
   // Assertion utilities
 
   // Test Case Runner
   const runTestCase = async (testFn, testLEDs, statusLEDs) => {
     // Fresh scope for this single test
+    const thisRunId = ++systemState.testRunId;
+    console.log(`Starting Test Run ID: ${thisRunId}`);
     const setups = [];
     const teardowns = [];
     const fixtureAPI = {
@@ -98,10 +97,13 @@ document.addEventListener("DOMContentLoaded", () => {
       statusIdle(statusLEDs);
       onVisualCue("OFF");
 
-      if (result.passed) {
+      // Only log result if still the current test run
+      // (gets around an annoying reset async test timing issue
+      // - should probably track it down and handle it correctly)
+      if (result.passed && systemState.testRunId === thisRunId) {
         console.log(`✅ PASS: ${result.message}`);
         onVisualCue("PASS");
-      } else {
+      } else if (systemState.testRunId === thisRunId) {
         console.log(`❌ FAIL: ${result.message}`);
         onVisualCue("FAIL");
       }
@@ -120,16 +122,16 @@ document.addEventListener("DOMContentLoaded", () => {
       return;
     }
 
-    if (currentTestIndex >= testFunctions.length) {
-      currentTestIndex = 0;
+    if (systemState.currentTestIndex >= testFunctions.length) {
+      systemState.currentTestIndex = 0;
       resetTestCaseLEDs(testCaseLEDs);
       console.log("All test cases completed. Resetting to first test case.");
     }
 
-    const testFn = testFunctions[currentTestIndex];
-    const testLED = testCaseLEDs[currentTestIndex];
+    const testFn = testFunctions[systemState.currentTestIndex];
+    const testLED = testCaseLEDs[systemState.currentTestIndex];
     runTestCase(testFn, testLED, statusLEDs);
-    currentTestIndex++;
+    systemState.currentTestIndex++;
   };
 
   const handleStartTest = () => {
@@ -138,20 +140,12 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   };
 
-  // Reset system logic
-  const resetSystem = () => {
-    currentTestIndex = 0;
-    stopPulseLED();
-    // turn off test case LEDs
-    resetTestCaseLEDs(testCaseLEDs);
-    // Turn off all status LEDs
-    resetStatusLEDs(statusLEDs);
-    // Flash power LED and restart sequence
-    flashLED(statusLEDs.pwr, "red", 100, 1000);
-    setTimeout(() => {
-      ledOn(statusLEDs.pwr);
-      powerOnSequence(statusLEDs);
-    }, 1100);
+  const buttonPressFlashInitLED = () => {
+    // Simulate brief flash on status init LED for any input button press
+    if (systemState.power) {
+      const interval = flashLED(statusLEDs.init, "red", 100, 200);
+      getActiveFlashIntervals().push(interval);
+    }
   };
 
   // Buttons Elements A–E
@@ -170,28 +164,20 @@ document.addEventListener("DOMContentLoaded", () => {
   });
 
   // Button handler functions
+  // Test cases attach their own handlers as needed to capture input from buttons a, b & c
   const handleButtonA = () => {
     console.log("Input Button A pressed");
-    if (systemState.power) {
-      const interval = flashLED(statusLEDs.init, "red", 100, 200);
-      activeFlashIntervals.push(interval);
-    }
+    buttonPressFlashInitLED();
   };
 
   const handleButtonB = () => {
     console.log("Input Button B pressed");
-    if (systemState.power) {
-      const interval = flashLED(statusLEDs.init, "red", 100, 200);
-      activeFlashIntervals.push(interval);
-    }
+    buttonPressFlashInitLED();
   };
 
   const handleButtonC = () => {
     console.log("Input Button C pressed");
-    if (systemState.power) {
-      const interval = flashLED(statusLEDs.init, "red", 100, 200);
-      activeFlashIntervals.push(interval);
-    }
+    buttonPressFlashInitLED();
   };
 
   const handleButtonD = () => {
@@ -204,7 +190,7 @@ document.addEventListener("DOMContentLoaded", () => {
   const handleButtonE = () => {
     console.log("'RESET' button pressed");
     if (systemState.power) {
-      resetSystem();
+      resetSystem(statusLEDs, testCaseLEDs);
     }
   };
 
