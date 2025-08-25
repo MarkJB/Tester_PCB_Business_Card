@@ -17,7 +17,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: lts/*
+          node-version: "20.x"
       - name: Install dependencies
         working-directory: ./software/simulator
         run: npm ci
@@ -30,7 +30,7 @@ jobs:
       - name: Start Vite preview server
         working-directory: ./software/simulator
         run: |
-          npm run preview
+          nohup npm run preview -- --host 0.0.0.0 &
       - name: Wait for app to be ready
         working-directory: ./software/simulator
         run: |
