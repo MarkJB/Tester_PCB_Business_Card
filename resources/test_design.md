@@ -142,76 +142,85 @@ And the system evaluates each input independently against its valid range
 
 ---
 
-## 🧪 Test Case 5: Unlock Pattern – State Transition / Timeout Test
+## 🧪 Test Case 5: Unlock Pattern – State Transition / Timeout + Recovery
 
-**Instruction**: Provide unlock code before input times out.
-**Type**: Equivalence Partitioning / Threshold Test
+**Instruction**: Enter the correct unlock code within the time limit.  
+**Type**: Equivalence Partitioning / Threshold Test with Recovery Path
 
-#### Scenario: System transitions through unlock states based on input sequence
+---
+
+### 📜 Scenario: System transitions through unlock states based on input sequence
 
 ```gherkin
-Given the the unlock test begins
-When the user presses buttons within the test time window (10 seconds)
-And the input sequence matches A → B → C → B → A
-Then the system transitions through INIT, STEP_1, STEP_2, STEP_3, and STEP_4
-And the system enters the PASS state after the final input
-And the system is 'unlocked'
+Scenario: Successful unlock
+  Given the unlock test is in progress
+  When the user enters the sequence A → B → C → B → A
+  Then the system transitions through INIT, STEP_1, STEP_2, STEP_3, and STEP_4
+  And the system enters the PASS state
+  And the system is unlocked
 
-Given the system is ready to begin the unlock test
-When the user enters an incorrect button unlock sequence (same number of button presses as the correct code)
-Then the system enters a RECOVERY state
-And the current test case LEDs stop blinking alternately
-And the current test case FAIL LEDs blinks rapidly
-And the user has a 5 second time to reset the count by pressing the c button twice
+Scenario: Incorrect unlock sequence
+  Given the unlock test is in progress
+  When the user enters any 5-button sequence that does not match A → B → C → B → A
+  Then the system enters the RECOVERY state
+  And the test case LEDs stop alternating
+  And the FAIL LED blinks rapidly
+  And the user has 5 seconds to reset the test by pressing C → C
 
-Given the system is in the RECOVERY state
-When the user clears the RECOVERY state by pressing the c button twice
-Then the RECOVERY timeout is cancelled and the test timeout is reset
-And the rapidly blinking FAIL LED is cleared
-And the current test case LEDs start blinking alternatley
-And the user can make another attempt at entering the correct code.
+Scenario: Recovery success
+  Given the system is in the RECOVERY state
+  When the user presses C → C within 5 seconds
+  Then the RECOVERY timeout is cancelled
+  And the FAIL LED is cleared
+  And the test case LEDs resume alternating
+  And the user may retry the unlock sequence
+
+Scenario: Recovery failure
+  Given the system is in the RECOVERY state
+  When the user does not press C → C within 5 seconds
+  Then the system enters the FAIL state
+  And the FAIL LED remains solid
 ```
 
-### 🔖 Type
-
-State Transition with Timeout and Recovery Path
+**🔖 Type**: State Transition, Timeout Handling
 
 ### 🧭 Objective
 
 Simulate a system requiring a precise unlock pattern:  
-`A → B → C → B → A`  
-Wrong input or delay triggers timeout. Recovery: `C x2`
+`A → B → C → B → A`
+
+- Input must be exactly 5 button presses
+- Incorrect sequence triggers recovery opportunity
+- Recovery: `C → C` within 5 seconds
+
+---
 
 ### 🛠️ Setup
 
-- **Time Limit**: 5 seconds
-- **Sequence**:
+- **Test Duration**: 10 seconds total from first input
+- **Input Limit**: Exactly 5 button presses
+- **Correct Sequence**:
   1. A → INIT
-  2. B → STEP 1
-  3. C → STEP 2
-  4. B → STEP 3
+  2. B → STEP_1
+  3. C → STEP_2
+  4. B → STEP_3
   5. A → PASS
-- Timeout or incorrect input → TIMEOUT
-- Recovery: C x2 → RECOVERY
+- **Incorrect Sequence**: Any 5-button input that does not match the above
+- **Recovery Trigger**: Only after incorrect 5-button input
+- **Recovery Window**: 5 seconds to enter `C → C`
+- **Post-Recovery**: Test resets, user may retry
 
-### 🔧 State Diagram
+---
 
-```plaintext
-IDLE
-  ↓ (Start Test)
-INIT
-  ↓ A
-STEP_1
-  ↓ B
-STEP_2
-  ↓ C
-STEP_3
-  ↓ B
-STEP_4
-  ↓ A → PASS
-  ↓ Timeout or wrong input → TIMEOUT
-TIMEOUT
-  ↓ C x2 → RECOVERY
-  ↓ Timeout or no input → FAIL
-PASS / RECOVERY / FAIL → IDLE
-```
+### 💡 LED Feedback
+
+| State       | LED Behavior                                 |
+| ----------- | -------------------------------------------- |
+| In Progress | Alternating red/green blink (test case LEDs) |
+| PASS        | Solid green                                  |
+| FAIL        | Solid red                                    |
+| RECOVERY    | Rapid red blink (FAIL LED)                   |
+
+> Note: Individual button validity is not shown. INIT LED pulses on button press via event handler.
+
+---
