@@ -113,7 +113,7 @@ test.describe("Simulator Test Case tests", () => {
       // of a kludge but works for now. We should really have a better way
       // to detect that the test is complete. Probably do something like
       // checking both simultaneously until we see the expected states.
-      await sim.expectLedFlashing("status_led_idle", "red", 10, 500);
+      await sim.expectLedFlashing("status_led_idle", "red", 11, 500);
       await sim.expectLedFlashing("status_led_run", "white", 5, 300);
 
       await sim.expectLedColor("test_case_1_pass_led", "lime");
@@ -126,7 +126,7 @@ test.describe("Simulator Test Case tests", () => {
       await sim.clickButton("b");
       await sim.clickButton("b", 1, 50);
 
-      await sim.expectLedFlashing("status_led_idle", "red", 10, 500);
+      await sim.expectLedFlashing("status_led_idle", "red", 11, 500);
       await sim.expectLedFlashing("status_led_run", "white", 5, 300);
 
       await sim.expectLedColor("test_case_2_pass_led", "lime");
@@ -139,7 +139,7 @@ test.describe("Simulator Test Case tests", () => {
       await sim.clickButton("b");
       await sim.clickButton("c");
 
-      await sim.expectLedFlashing("status_led_idle", "red", 10, 500);
+      await sim.expectLedFlashing("status_led_idle", "red", 11, 500);
       await sim.expectLedFlashing("status_led_run", "white", 5, 300);
 
       await sim.expectLedColor("test_case_3_pass_led", "lime");
@@ -153,10 +153,51 @@ test.describe("Simulator Test Case tests", () => {
       await sim.clickButton("b", 6);
       await sim.clickButton("c", 3);
 
-      await sim.expectLedFlashing("status_led_idle", "red", 10, 500);
+      await sim.expectLedFlashing("status_led_idle", "red", 11, 500);
       await sim.expectLedFlashing("status_led_run", "white", 5, 300);
 
       await sim.expectLedColor("test_case_4_pass_led", "lime");
+    });
+
+    test("TC5: correct unlock sequence → PASS", async () => {
+      await sim.startTest();
+      await sim.expectLedFlashing("status_led_run", "red", 5, 300);
+      await sim.expectLedFlashing("status_led_idle", "white", 5, 300);
+
+      await sim.clickButton("a");
+      await sim.clickButton("b");
+      await sim.clickButton("c");
+      await sim.clickButton("b");
+      await sim.clickButton("a");
+
+      await sim.expectLedFlashing("status_led_idle", "red", 11, 500);
+      await sim.expectLedFlashing("status_led_run", "white", 5, 300);
+      await sim.expectLedColor("test_case_5_pass_led", "lime");
+    });
+
+    test("TC5: incorrect sequence → recovery → reset → correct sequence → PASS", async () => {
+      await sim.startTest();
+      await sim.clickButton("a");
+      await sim.clickButton("a");
+      await sim.clickButton("a");
+      await sim.clickButton("a");
+      await sim.clickButton("a");
+
+      // Should enter recovery state
+      await sim.expectLedFlashing("test_case_5_fail_led", "red", 5, 300);
+
+      // Reset with C → C
+      await sim.clickButton("c");
+      await sim.clickButton("c");
+
+      // Retry correct sequence
+      await sim.clickButton("a");
+      await sim.clickButton("b");
+      await sim.clickButton("c");
+      await sim.clickButton("b");
+      await sim.clickButton("a");
+
+      await sim.expectLedColor("test_case_5_pass_led", "lime");
     });
   });
 
@@ -214,6 +255,49 @@ test.describe("Simulator Test Case tests", () => {
       await sim.expectLedFlashing("status_led_run", "white", 5, 300);
 
       await sim.expectLedColor("test_case_4_fail_led", "red");
+    });
+
+    test("TC5: incorrect sequence → recovery timeout → FAIL", async () => {
+      await sim.startTest();
+      await sim.clickButton("b");
+      await sim.clickButton("b");
+      await sim.clickButton("b");
+      await sim.clickButton("b");
+      await sim.clickButton("b");
+
+      // Should enter recovery state
+      await sim.expectLedFlashing("test_case_5_fail_led", "red", 5, 300);
+
+      // Wait for recovery timeout
+      await sim.waitWindow(6000); // longer than RECOVERY_WINDOW_MS
+
+      await sim.expectLedColor("test_case_5_fail_led", "red");
+    });
+
+    test("TC5: three failed attempts → LOCKOUT", async () => {
+      await sim.startTest();
+
+      for (let i = 0; i < 3; i++) {
+        await sim.clickButton("c");
+        await sim.clickButton("c");
+        await sim.clickButton("c");
+        await sim.clickButton("c");
+        await sim.clickButton("c");
+
+        await sim.expectLedFlashing("test_case_5_fail_led", "red", 5, 300);
+        await sim.waitWindow(6000); // allow recovery to timeout
+      }
+
+      await sim.expectLedColor("test_case_5_fail_led", "red");
+      // Optionally check that further input is ignored
+      await sim.clickButton("a");
+      await sim.clickButton("b");
+      await sim.clickButton("c");
+      await sim.clickButton("b");
+      await sim.clickButton("a");
+
+      // Still fail
+      await sim.expectLedColor("test_case_5_fail_led", "red");
     });
   });
 });
