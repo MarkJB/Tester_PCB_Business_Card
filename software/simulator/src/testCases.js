@@ -1,5 +1,6 @@
 import { assertResult } from "./utils.js";
 import { systemState } from "./state.js";
+import { clearTestFlashIntervals } from "./leds.js";
 
 // All test cases now accept a `page` argument for DOM access
 export const testCase1 = ({ setup, teardown, page }) => {
@@ -166,4 +167,155 @@ export const testCase4 = ({ setup, teardown, page }) => {
   });
 };
 
-export const testFunctions = [testCase1, testCase2, testCase3, testCase4];
+export const testCase5 = ({ setup, teardown, page, onVisualCue }) => {
+  const correctSequence = ["a", "b", "c", "b", "a"];
+  const MAX_INPUTS = 5;
+  const MAX_ATTEMPTS = 3;
+  const RECOVERY_WINDOW_MS = 5000;
+
+  let inputSequence = [];
+  let recoveryBuffer = [];
+  let inRecovery = false;
+  let lastWasC = false;
+  let attempts = 0;
+  let recoveryStartTime = null;
+  let resolved = false;
+  const listeners = [];
+  let resolve;
+
+  const resolveTest = (pass, message, data = {}) => {
+    if (resolved) return;
+    resolved = true;
+    teardownListeners();
+    resolve(assertResult(pass, message, data));
+  };
+
+  const teardownListeners = () => {
+    listeners.forEach(({ el, handler }) =>
+      el?.removeEventListener("click", handler)
+    );
+    console.log("🧹 TestCase5 teardown: listeners removed");
+  };
+
+  const enterRecovery = () => {
+    inRecovery = true;
+    recoveryBuffer = [];
+    lastWasC = false;
+    recoveryStartTime = Date.now();
+    clearTestFlashIntervals();
+    onVisualCue?.("OFF");
+    onVisualCue?.("FAIL_BLINK");
+    console.log("🔁 Entered RECOVERY state");
+  };
+
+  const recoverAndReset = () => {
+    inRecovery = false;
+    recoveryBuffer = [];
+    lastWasC = false;
+    recoveryStartTime = null;
+    inputSequence = [];
+    onVisualCue?.("STOP_BLINK");
+    onVisualCue?.("TEST_IN_PROGRESS");
+    console.log("🔄 Recovery successful → test reset");
+  };
+
+  const handleInput = (key) => {
+    if (!systemState?.ready || resolved) return;
+
+    if (inRecovery) {
+      recoveryBuffer.push(key);
+      if (key === "c") {
+        if (lastWasC) {
+          recoverAndReset();
+        } else {
+          lastWasC = true;
+        }
+      } else {
+        lastWasC = false;
+      }
+      return;
+    }
+
+    if (inputSequence.length === 0) {
+      onVisualCue?.("TEST_IN_PROGRESS");
+    }
+
+    if (inputSequence.length < MAX_INPUTS) {
+      inputSequence.push(key);
+
+      if (inputSequence.length === MAX_INPUTS) {
+        const isCorrect = inputSequence.every(
+          (val, idx) => val === correctSequence[idx]
+        );
+        if (isCorrect) {
+          resolveTest(true, "Unlock sequence correct", {
+            attempts,
+            inputSequence,
+          });
+        } else {
+          attempts += 1;
+          if (attempts >= MAX_ATTEMPTS) {
+            resolveTest(false, "Maximum attempts reached", {
+              attempts,
+              inputSequence,
+            });
+          } else {
+            enterRecovery();
+          }
+        }
+      }
+    }
+  };
+
+  setup(async () => {
+    ["a", "b", "c"].forEach((key) => {
+      const el = page.buttonInputs[key];
+      const handler = () => handleInput(key);
+      el?.addEventListener("click", handler);
+      listeners.push({ el, handler });
+    });
+    console.log("🔧 TestCase5 setup: listeners attached for A, B, C");
+  });
+
+  teardown(async () => {
+    teardownListeners();
+  });
+
+  return new Promise((res) => {
+    resolve = res;
+
+    const tick = () => {
+      if (resolved) return;
+
+      const now = Date.now();
+
+      if (inRecovery && now - recoveryStartTime > RECOVERY_WINDOW_MS) {
+        onVisualCue?.("STOP_FAIL_BLINK");
+
+        attempts += 1;
+
+        if (attempts >= MAX_ATTEMPTS) {
+          resolveTest(false, "Recovery failed and max attempts reached", {
+            attempts,
+          });
+        } else {
+          resolveTest(false, "Recovery failed", {
+            attempts,
+          });
+        }
+      }
+
+      setTimeout(tick, 100);
+    };
+
+    tick();
+  });
+};
+
+export const testFunctions = [
+  testCase1,
+  testCase2,
+  testCase3,
+  testCase4,
+  testCase5,
+];
