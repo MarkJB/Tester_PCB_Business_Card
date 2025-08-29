@@ -1,26 +1,57 @@
 import { systemState } from "./state.js";
 
-// Pulse and flash helpers
-let _activeFlashIntervals = [];
-export const getActiveFlashIntervals = () => {
-  return _activeFlashIntervals;
-};
-export const setActiveFlashIntervals = (val) => {
-  _activeFlashIntervals = val;
+let _flashRegistry = {
+  test: [],
+  status: [],
 };
 
-export const clearActiveFlashIntervals = () => {
-  _activeFlashIntervals.forEach((entry) => {
+export const getFlashRegistry = () => _flashRegistry;
+
+export const clearFlashGroup = (group) => {
+  _flashRegistry[group]?.forEach((entry) => {
     if (typeof entry === "number") {
       clearInterval(entry);
     } else if (entry && typeof entry.id === "number") {
       clearInterval(entry.id);
     }
   });
-  _activeFlashIntervals = [];
+  _flashRegistry[group] = [];
 };
 
-export const startPulseLED = (ledElement, interval, colour = "red") => {
+const normalizeEntry = (entry, source = "anon") => {
+  if (typeof entry === "number") return { id: entry, source };
+  if (entry && typeof entry.id === "number")
+    return { id: entry.id, source: entry.source ?? source };
+  return entry;
+};
+
+export const addFlashInterval = (group = "test", entry, source = "anon") => {
+  if (!_flashRegistry[group]) {
+    _flashRegistry[group] = [];
+  }
+  const normalized = normalizeEntry(entry, source);
+  _flashRegistry[group].push(normalized);
+  return normalized;
+};
+
+export const clearStatusFlashIntervals = () => {
+  clearFlashGroup("status");
+};
+
+export const clearTestFlashIntervals = () => {
+  clearFlashGroup("test");
+};
+
+export const clearAllFlashIntervals = () => {
+  Object.keys(_flashRegistry).forEach(clearFlashGroup);
+};
+
+export const startPulseLED = (
+  ledElement,
+  interval,
+  colour = "red",
+  group = "test"
+) => {
   let isOn = false;
   const pulse = setInterval(() => {
     if (!systemState?.power) {
@@ -31,40 +62,42 @@ export const startPulseLED = (ledElement, interval, colour = "red") => {
     isOn ? ledOff(ledElement) : ledOn(ledElement, colour);
     isOn = !isOn;
   }, interval);
-  _activeFlashIntervals.push(pulse);
+  _flashRegistry[group].push(pulse);
 };
 
-export const stopPulseLED = () => {
-  clearActiveFlashIntervals();
+export const stopPulseLED = (group = "test") => {
+  if (group === "test") {
+    console.warn(
+      "⚠️ stopPulseLED() without group is deprecated. Use stopPulseLED('status') instead."
+    );
+  }
+  clearFlashGroup(group);
 };
-// LED control functions for the simulator
 
 export const testCaseInProgress = (passLED, failLED, interval = 500) => {
   let toggle = false;
 
-  const flash = {
-    id: setInterval(() => {
-      if (!systemState.running) {
-        clearInterval(flash);
-        ledOff(passLED);
-        ledOff(failLED);
-        return;
-      }
+  const id = setInterval(() => {
+    if (!systemState.running) {
+      clearInterval(id);
+      ledOff(passLED);
+      ledOff(failLED);
+      return;
+    }
 
-      if (toggle) {
-        ledOn(passLED, "lime");
-        ledOff(failLED);
-      } else {
-        ledOn(failLED, "red");
-        ledOff(passLED);
-      }
+    if (toggle) {
+      ledOn(passLED, "lime");
+      ledOff(failLED);
+    } else {
+      ledOn(failLED, "red");
+      ledOff(passLED);
+    }
 
-      toggle = !toggle;
-    }, interval),
-    source: "testCaseInProgress",
-  };
+    toggle = !toggle;
+  }, interval);
 
-  _activeFlashIntervals.push(flash);
+  const flash = { id, source: "testCaseInProgress" };
+  _flashRegistry.test.push(flash);
 };
 
 export const ledOn = (element, colour = "red") => {

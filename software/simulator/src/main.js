@@ -5,13 +5,12 @@ import {
   ledOn,
   ledOff,
   startPulseLED,
-  stopPulseLED,
   flashLED,
   statusRunning,
   statusIdle,
   testCaseInProgress,
   resetTestCaseLEDs,
-  getActiveFlashIntervals,
+  clearTestFlashIntervals,
 } from "./leds.js";
 import { systemState, isSystemReady } from "./state.js";
 import { startBootSequence, stopBootSequence, resetSystem } from "./boot.js";
@@ -64,10 +63,10 @@ document.addEventListener("DOMContentLoaded", () => {
     const onVisualCue = (cue) => {
       switch (cue) {
         case "FAIL_BLINK":
-          startPulseLED(testLEDs.fail, "red");
+          startPulseLED(testLEDs.fail, 500, "red", "test");
           break;
-        case "STOP_BLINK":
-          stopPulseLED(testLEDs.fail);
+        case "STOP_FAIL_BLINK":
+          clearTestFlashIntervals();
           break;
         case "PASS":
           ledOn(testLEDs.pass, "lime");
@@ -78,6 +77,9 @@ document.addEventListener("DOMContentLoaded", () => {
         case "OFF":
           ledOff(testLEDs.pass);
           ledOff(testLEDs.fail);
+          break;
+        case "TEST_IN_PROGRESS":
+          testCaseInProgress(testLEDs.pass, testLEDs.fail);
           break;
         default:
           console.warn(`Unknown visual cue: ${cue}`);
@@ -143,8 +145,7 @@ document.addEventListener("DOMContentLoaded", () => {
   const buttonPressFlashInitLED = () => {
     // Simulate brief flash on status init LED for any input button press
     if (systemState.power) {
-      const interval = flashLED(statusLEDs.init, "red", 100, 200);
-      getActiveFlashIntervals().push(interval);
+      flashLED(statusLEDs.init, "red", 100, 200);
     }
   };
 

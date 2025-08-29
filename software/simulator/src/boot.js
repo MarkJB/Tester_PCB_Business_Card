@@ -3,11 +3,10 @@ import {
   ledOff,
   startPulseLED,
   flashLED,
-  getActiveFlashIntervals,
-  setActiveFlashIntervals,
   resetTestCaseLEDs,
   resetStatusLEDs,
-  clearActiveFlashIntervals,
+  clearAllFlashIntervals,
+  addFlashInterval,
 } from "./leds.js";
 import { systemState } from "./state.js";
 
@@ -20,12 +19,12 @@ export const clearBootTimeouts = () => {
 
 export const powerOnSequence = (statusLEDs) => {
   clearBootTimeouts();
-  clearActiveFlashIntervals();
+  clearAllFlashIntervals();
   const { pwr, init, rdy, run, idle } = statusLEDs;
   ledOn(pwr);
   const pwrOnTimeout1 = setTimeout(() => {
     const interval = flashLED(init, "red", 200, 2000);
-    getActiveFlashIntervals().push(interval);
+    addFlashInterval("status", interval, "boot");
     const pwrOnTimeout2 = setTimeout(() => {
       ledOn(rdy);
       ledOff(run);
@@ -41,7 +40,7 @@ export const powerOnSequence = (statusLEDs) => {
 
 export const startBootSequence = (statusLEDs) => {
   clearBootTimeouts();
-  clearActiveFlashIntervals();
+  clearAllFlashIntervals();
   console.log("Starting boot sequence...");
   if (!systemState.power) return;
   const { pwr, init, rdy, run, idle } = statusLEDs;
@@ -49,7 +48,7 @@ export const startBootSequence = (statusLEDs) => {
   systemState.init = true;
   const initFlashDuration = 2000;
   const interval = flashLED(init, "red", 200, initFlashDuration);
-  getActiveFlashIntervals().push(interval);
+  addFlashInterval("status", interval, "startBootSequence");
   const timeout = setTimeout(() => {
     if (!systemState.power) return;
     systemState.init = false;
@@ -64,7 +63,8 @@ export const startBootSequence = (statusLEDs) => {
 export const stopBootSequence = (statusLEDs, testCaseLEDs) => {
   console.log("Stopping boot sequence... (power off)");
   clearBootTimeouts();
-  clearActiveFlashIntervals();
+  clearAllFlashIntervals();
+  systemState.power = false;
   resetStatusLEDs(statusLEDs);
   resetTestCaseLEDs(testCaseLEDs);
 };
@@ -73,13 +73,10 @@ export const stopBootSequence = (statusLEDs, testCaseLEDs) => {
 export const resetSystem = (statusLEDs, testCaseLEDs) => {
   if (!systemState.power) return;
   clearBootTimeouts();
-  clearActiveFlashIntervals();
+  clearAllFlashIntervals();
   console.log("Resetting system...");
   systemState.currentTestIndex = 0;
   systemState.testRunId++;
-  //   stopPulseLED();
-  getActiveFlashIntervals().forEach(clearInterval);
-  setActiveFlashIntervals([]);
   // turn off test case LEDs
   resetTestCaseLEDs(testCaseLEDs);
   // Turn off all status LEDs
