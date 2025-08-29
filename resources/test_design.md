@@ -145,7 +145,7 @@ And the system evaluates each input independently against its valid range
 ## 🧪 Test Case 5: Unlock Pattern – State Transition / Timeout + Recovery
 
 **Instruction**: Enter the correct unlock code within the time limit.  
-**Type**: Equivalence Partitioning / Threshold Test with Recovery Path
+**Type**: State Transition, Timeout Handling
 
 ---
 
@@ -181,8 +181,6 @@ Scenario: Recovery failure
   Then the system enters the FAIL state
   And the FAIL LED remains solid
 ```
-
-**🔖 Type**: State Transition, Timeout Handling
 
 ### 🧭 Objective
 
