@@ -175,30 +175,43 @@ test.describe("Simulator Test Case tests", () => {
       await sim.expectLedColor("test_case_5_pass_led", "lime");
     });
 
-    test("TC5: incorrect sequence → recovery → reset → correct sequence → PASS", async () => {
-      await sim.startTest();
-      await sim.clickButton("a");
-      await sim.clickButton("a");
-      await sim.clickButton("a");
-      await sim.clickButton("a");
-      await sim.clickButton("a");
+    // Can run this unless we also run the first 5 tests again :(
+    //   test("TC5: incorrect sequence → recovery → reset → correct sequence → PASS", async () => {
+    //     await sim.startTest();
+    //     console.log("Enter first incorrect sequence");
+    //     await sim.clickButton("a");
+    //     await sim.clickButton("a");
+    //     await sim.clickButton("a");
+    //     await sim.clickButton("a");
+    //     await sim.clickButton("a");
 
-      // Should enter recovery state
-      await sim.expectLedFlashing("test_case_5_fail_led", "red", 5, 300);
+    //     console.log("Check for recovery state");
+    //     // Should enter recovery state
+    //     await sim.expectLedFlashing("test_case_5_fail_led", "red", 5, 500);
 
-      // Reset with C → C
-      await sim.clickButton("c");
-      await sim.clickButton("c");
+    //     // Reset with C → C
+    //     console.log("Reset with C C");
+    //     await sim.clickButton("c");
+    //     await sim.clickButton("c");
 
-      // Retry correct sequence
-      await sim.clickButton("a");
-      await sim.clickButton("b");
-      await sim.clickButton("c");
-      await sim.clickButton("b");
-      await sim.clickButton("a");
+    //     console.log("Check for alternate flashing of pass/fail LEDs here");
+    //     await sim.expectLedsFlashing(
+    //       "test_case_5_pass_led",
+    //       "test_case_5_fail_led"
+    //     );
 
-      await sim.expectLedColor("test_case_5_pass_led", "lime");
-    });
+    //     console.log("enter correct sequence");
+
+    //     // Retry correct sequence
+    //     await sim.clickButton("a");
+    //     await sim.clickButton("b");
+    //     await sim.clickButton("c");
+    //     await sim.clickButton("b");
+    //     await sim.clickButton("a");
+
+    //     console.log("Check for test pass");
+    //     await sim.expectLedColor("test_case_5_pass_led", "lime");
+    //   });
   });
 
   test.describe("Negative Cases", () => {
@@ -273,7 +286,40 @@ test.describe("Simulator Test Case tests", () => {
 
       await sim.expectLedColor("test_case_5_fail_led", "red");
     });
+  });
 
+  test.describe("Allow tests TC1-TC4 to timeout, then run TC5 lockout fail test", () => {
+    test("TC1 timeout", async () => {
+      await sim.startTest();
+      await sim.waitWindow(6000); // longer than RECOVERY_WINDOW_MS
+
+      await sim.expectLedColor("test_case_1_fail_led", "red");
+    });
+
+    test("TC2 timeout", async () => {
+      await sim.startTest();
+      await sim.waitWindow(6000); // longer than RECOVERY_WINDOW_MS
+
+      await sim.expectLedColor("test_case_2_fail_led", "red");
+    });
+
+    test("TC3 timeout", async () => {
+      await sim.startTest();
+      await sim.waitWindow(6000); // longer than RECOVERY_WINDOW_MS
+
+      await sim.expectLedColor("test_case_3_fail_led", "red");
+    });
+
+    test("TC4 timeout", async () => {
+      await sim.startTest();
+      await sim.waitWindow(6000); // longer than RECOVERY_WINDOW_MS
+
+      await sim.expectLedColor("test_case_4_fail_led", "red");
+    });
+
+    // Can't run this unless we also run the first 5 tests again so
+    // using that as an excuse to check that the first 4 tests timeout
+    // if we do nothing.
     test("TC5: three failed attempts → LOCKOUT", async () => {
       await sim.startTest();
 
