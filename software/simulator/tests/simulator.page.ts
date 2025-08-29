@@ -1,5 +1,7 @@
 import { Page, expect, Locator } from "@playwright/test";
 
+const DEBUG_MODE = process.env.DEBUG === "true";
+
 export class SimulatorPage {
   async reset() {
     await this.button("e").click();
@@ -64,9 +66,12 @@ export class SimulatorPage {
       const style = await this.led(ledId).getAttribute("style");
       const match = style?.match(/fill:\s*([^;]+)/i);
       if (match) colors.add(match[1].trim());
-      console.log(`Sampled LED ${ledId}: ${match ? match[1] : "unknown"}`);
-      console.log(`Sample ${i + 1}/${sampleCount}`);
-      console.log(`Colors so far: ${Array.from(colors).join(", ")}`);
+      if (DEBUG_MODE) {
+        console.debug(`Sampled LED ${ledId}: ${match ? match[1] : "unknown"}`);
+        console.debug(`Sample ${i + 1}/${sampleCount}`);
+        console.debug(`Colors so far: ${Array.from(colors).join(", ")}`);
+      }
+
       await this.page.waitForTimeout(intervalMs);
     }
     return colors;
@@ -102,8 +107,10 @@ export class SimulatorPage {
       this.sampleLedColors(passLEDId, sampleCount, intervalMs),
       this.sampleLedColors(failLEDId, sampleCount, intervalMs),
     ]);
-    console.log("Pass LED colors:", passLEDColors);
-    console.log("Fail LED colors:", failLEDColors);
+    if (DEBUG_MODE) {
+      console.debug("Pass LED colors:", passLEDColors);
+      console.debug("Fail LED colors:", failLEDColors);
+    }
 
     expect(passLEDColors.has(passColour)).toBeTruthy();
     expect(failLEDColors.has(failColour)).toBeTruthy();
@@ -120,7 +127,7 @@ export class SimulatorPage {
   }
 
   async expectLedColor(ledId: string, color: "lime" | "red" | "white") {
-    console.log(`Expect LED ${ledId} to be ${color}`);
+    if (DEBUG_MODE) console.debug(`Expect LED ${ledId} to be ${color}`);
     await expect(this.led(ledId)).toHaveAttribute(
       "style",
       new RegExp(`fill:\\s*${color}`, "i")
