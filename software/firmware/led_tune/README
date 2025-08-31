@@ -1,0 +1,9 @@
+This firmware turns on the PWR, TC1 Pass and TC1 Fail LEDs so the resistor values can be tuned manually (by changing the resistor values).
+
+This was done because the original chosen resistor values were too low and the LEDs were very bright.
+
+There is no need to compile or run this unless we change the LEDs again or wish to make them brighter or dimmer.
+
+I wasn't able to upload with the PIO upload button, but I was able to run program the board after downloading the (openwch/openocd_wch repo)[https://github.com/openwch/openocd_wch]. This repo provides a customised version of the openocd.exe util that works with the WHC-Link-E programmer and running the following command:
+
+openocd_wch\bin\openocd.exe -f openocd_wch\bin\wch-riscv.cfg -c "program path\to\firmware.elf verify reset exit"
