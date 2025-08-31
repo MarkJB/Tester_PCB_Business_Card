@@ -4,6 +4,7 @@
 *.bak
 *.autosave
 *.tmp
+*.lck
 *.save
 # KiCad autosave backups
 *-backups/
@@ -49,3 +50,6 @@ Thumbs.db
 build/
 dist/
 *.log
+
+# vscode
+.vscode/
