@@ -3893,7 +3893,7 @@
 		)
 		(uuid "fda56645-ed90-48e6-9471-406c6f897d00")
 	)
-	(label "ROW_E"
+	(label "COL_E"
 		(at 26.67 167.64 0)
 		(effects
 			(font
@@ -3933,7 +3933,7 @@
 		)
 		(uuid "2498edcd-1bcd-4edd-93f6-06fa696a313d")
 	)
-	(label "COL_G"
+	(label "ROW_G"
 		(at 134.62 90.17 180)
 		(effects
 			(font
@@ -3953,7 +3953,7 @@
 		)
 		(uuid "2f81dd50-cc55-485f-b995-1f82b3faf601")
 	)
-	(label "ROW_C"
+	(label "COL_C"
 		(at 85.09 69.85 0)
 		(effects
 			(font
@@ -3963,7 +3963,7 @@
 		)
 		(uuid "346477dc-92a3-4d5c-8d70-e1ceb66da690")
 	)
-	(label "COL_R"
+	(label "ROW_R"
 		(at 27.94 110.49 0)
 		(effects
 			(font
@@ -3993,7 +3993,7 @@
 		)
 		(uuid "4452c998-2db1-41d1-8ce3-fa0acb7d4705")
 	)
-	(label "ROW_D"
+	(label "COL_D"
 		(at 26.67 163.83 0)
 		(effects
 			(font
@@ -4003,7 +4003,7 @@
 		)
 		(uuid "53f63bc2-59aa-411b-ab13-43ede70f3236")
 	)
-	(label "ROW_C"
+	(label "COL_C"
 		(at 26.67 160.02 0)
 		(effects
 			(font
@@ -4063,7 +4063,7 @@
 		)
 		(uuid "6858c47d-ecb6-44c3-9858-181b251f34f1")
 	)
-	(label "COL_R"
+	(label "ROW_R"
 		(at 134.62 87.63 180)
 		(effects
 			(font
@@ -4153,7 +4153,7 @@
 		)
 		(uuid "a88125fc-857e-4067-b638-4ab1921a0563")
 	)
-	(label "ROW_B"
+	(label "COL_B"
 		(at 85.09 67.31 0)
 		(effects
 			(font
@@ -4163,7 +4163,7 @@
 		)
 		(uuid "af130440-07ae-4301-95a9-17eb507a11c4")
 	)
-	(label "ROW_B"
+	(label "COL_B"
 		(at 26.67 156.21 0)
 		(effects
 			(font
@@ -4173,7 +4173,7 @@
 		)
 		(uuid "b425e87b-7c1c-4238-a53b-d8921152e977")
 	)
-	(label "ROW_A"
+	(label "COL_A"
 		(at 85.09 64.77 0)
 		(effects
 			(font
@@ -4193,7 +4193,7 @@
 		)
 		(uuid "e03ed32e-4a16-4405-81e6-2200f2c66500")
 	)
-	(label "ROW_A"
+	(label "COL_A"
 		(at 26.67 152.4 0)
 		(effects
 			(font
@@ -4203,7 +4203,7 @@
 		)
 		(uuid "e270c5fb-ec00-498c-afad-4f2bc2c627b0")
 	)
-	(label "ROW_E"
+	(label "COL_E"
 		(at 85.09 74.93 0)
 		(effects
 			(font
@@ -4223,7 +4223,7 @@
 		)
 		(uuid "e55e90e2-07e4-4475-9f3f-acfa3628d9fc")
 	)
-	(label "ROW_D"
+	(label "COL_D"
 		(at 85.09 72.39 0)
 		(effects
 			(font
@@ -4233,7 +4233,7 @@
 		)
 		(uuid "eb7a0fc1-50e0-4556-915a-c1ae3a2fc914")
 	)
-	(label "COL_G"
+	(label "ROW_G"
 		(at 27.94 116.84 0)
 		(effects
 			(font
