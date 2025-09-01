@@ -32,15 +32,13 @@
 const uint8_t statusLEDs[] = { PIN_INIT, PIN_RDY, PIN_RUN, PIN_IDLE };
 const uint8_t cols[] = { PIN_COL_A, PIN_COL_B, PIN_COL_C, PIN_COL_D, PIN_COL_E };
 
-bool overrideMode = false;
-
 typedef enum {
     MODE_DEMO,
     MODE_INPUT
 } BoardMode;
 
 BoardMode currentMode = MODE_DEMO;
-
+void runInputMode(void);
 
 void setupPins() {
     funGpioInitAll();
@@ -66,19 +64,8 @@ void setupPins() {
     funDigitalWrite(PIN_ROW_G, FUN_HIGH);
 }
 
-
-// Add this near the top
 const uint8_t inputPins[] = { PIN_INPUT_A, PIN_INPUT_B, PIN_INPUT_C, PIN_INPUT_D };
 const uint8_t inputCols[] = { PIN_COL_A, PIN_COL_B, PIN_COL_C, PIN_COL_D }; // TC1–TC4
-
-int getPressedInputIndex() {
-    for (int i = 0; i < 4; i++) {
-        if (funDigitalRead(inputPins[i]) == FUN_LOW) {
-            return i;
-        }
-    }
-    return -1;
-}
 
 bool isAnyButtonPressed() {
     for (int i = 0; i < 4; i++) {
@@ -87,38 +74,6 @@ bool isAnyButtonPressed() {
         }
     }
     return false;
-}
-
-void enterOverrideMode() {
-    overrideMode = true;
-
-    // Turn off all LEDs except PWR
-    for (int i = 0; i < 4; i++) funDigitalWrite(statusLEDs[i], FUN_HIGH);
-    for (int i = 0; i < 5; i++) funDigitalWrite(cols[i], FUN_LOW);
-    funDigitalWrite(PIN_ROW_R, FUN_HIGH);
-    funDigitalWrite(PIN_ROW_G, FUN_HIGH);
-
-    while (overrideMode) {
-        bool stillPressed = false;
-
-        for (int i = 0; i < 4; i++) {
-            if (funDigitalRead(inputPins[i]) == FUN_LOW) {
-                stillPressed = true;
-                funDigitalWrite(inputCols[i], FUN_HIGH);
-            } else {
-                funDigitalWrite(inputCols[i], FUN_LOW);
-            }
-        }
-
-        if (stillPressed) {
-            funDigitalWrite(PIN_ROW_G, FUN_LOW); // Show pass
-        } else {
-            funDigitalWrite(PIN_ROW_G, FUN_HIGH); // Reset
-            overrideMode = false;
-        }
-
-        Delay_Ms(50); // Polling delay
-    }
 }
 
 void delayWithInputCheck(uint16_t ms) {
@@ -132,40 +87,10 @@ void delayWithInputCheck(uint16_t ms) {
     }
 }
 
-
-bool checkInputs() {
-    for (int i = 0; i < 4; i++) {
-        funPinMode(inputPins[i], GPIO_CNF_IN_FLOATING); // Configure as input
-        if (funDigitalRead(inputPins[i]) == FUN_LOW) {
-            return true;
-        }
-    }
-    return false;
-}
-
-void handleInputOverride() {
-    // Turn off all LEDs except PWR
-    for (int i = 0; i < 4; i++) funDigitalWrite(statusLEDs[i], FUN_HIGH);
-    for (int i = 0; i < 5; i++) funDigitalWrite(cols[i], FUN_LOW);
-    funDigitalWrite(PIN_ROW_R, FUN_HIGH);
-    funDigitalWrite(PIN_ROW_G, FUN_HIGH);
-
-    // Turn on respective TC column if input is LOW
-    for (int i = 0; i < 4; i++) {
-        if (funDigitalRead(inputPins[i]) == FUN_LOW) {
-            funDigitalWrite(inputCols[i], FUN_HIGH);
-        }
-    }
-}
-
 void blinkStatusSequence() {
     funDigitalWrite(PIN_PWR, FUN_LOW); // PWR stays on
 
     for (int i = 0; i < 4; i++) {
-        if (checkInputs()) {
-            handleInputOverride();
-            return;
-        }
         funDigitalWrite(statusLEDs[i], FUN_LOW);
         delayWithInputCheck(200); // or delayWithInputCheck(100)
         funDigitalWrite(statusLEDs[i], FUN_HIGH);
@@ -175,11 +100,6 @@ void blinkStatusSequence() {
 
 void scanTestCases() {
     for (int i = 0; i < 5; i++) {
-        if (checkInputs()) {
-            handleInputOverride();
-            return;
-        }
-
         for (int j = 0; j < 5; j++) funDigitalWrite(cols[j], FUN_LOW);
         funDigitalWrite(PIN_ROW_G, FUN_HIGH);
         funDigitalWrite(PIN_ROW_R, FUN_HIGH);
@@ -187,11 +107,6 @@ void scanTestCases() {
         funDigitalWrite(cols[i], FUN_HIGH);
         funDigitalWrite(PIN_ROW_G, FUN_LOW);
         delayWithInputCheck(200); // or delayWithInputCheck(100)
-
-        if (checkInputs()) {
-            handleInputOverride();
-            return;
-        }
 
         funDigitalWrite(PIN_ROW_G, FUN_HIGH);
         funDigitalWrite(PIN_ROW_R, FUN_LOW);
