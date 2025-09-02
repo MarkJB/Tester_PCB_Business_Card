@@ -30,50 +30,79 @@
 // This is a a hardware feature and does not require configuration.
 
 const uint8_t statusLEDs[] = { PIN_PWR, PIN_INIT, PIN_RDY, PIN_RUN, PIN_IDLE };
-const uint8_t cols[] = { PIN_COL_A, PIN_COL_B, PIN_COL_C, PIN_COL_D, PIN_COL_E };
-const uint8_t rows[] = { PIN_ROW_R, PIN_ROW_G };
+const uint8_t testCols[] = { PIN_COL_A, PIN_COL_B, PIN_COL_C, PIN_COL_D, PIN_COL_E };
+const uint8_t testRows[] = { PIN_ROW_R, PIN_ROW_G };
+const uint8_t rowRed     = PIN_ROW_R;
+const uint8_t rowGreen   = PIN_ROW_G;
+
 const uint8_t inputPins[] = { PIN_INPUT_A, PIN_INPUT_B, PIN_INPUT_C, PIN_INPUT_D };
 
-#define FLASH_INTERVAL_MS 500  // Flash every 500ms
+#define FLASH_INTERVAL_MS 10  // Flash every 10ms
 
 volatile bool runMode = true;       // Current mode: true = RUN, false = IDLE
 volatile bool ledState = false;     // Current LED state (on/off)
 
 typedef enum {
+    TC_NO_RESULT,
     TC_PASS,
     TC_FAIL,
     TC_IN_PROGRESS,
     TC_RETRY
 } TestCaseState;
 
+volatile TestCaseState testCaseStates[5];  // TC_PASS, TC_FAIL, etc.
+
+volatile uint16_t tickCount = 0;
+volatile bool flashState = false;
+
+void scanTestCaseLEDs(void);
+
+void initTestCaseStates() {
+    for (int i = 0; i < 5; i++) {
+        testCaseStates[i] = TC_NO_RESULT;
+    }
+}
 
 // Forward declare with correct attribute (WCH RISC-V ISR)
 void TIM1_UP_IRQHandler(void) __attribute__((interrupt("WCH-Interrupt-fast")));
 
-// TIM1 update interrupt handler
 void TIM1_UP_IRQHandler(void)
 {
     if (TIM1->INTFR & TIM_UIF)
     {
-        TIM1->INTFR &= ~TIM_UIF;  // clear update flag
+        TIM1->INTFR &= ~TIM_UIF;
+        tickCount++;
 
-        uint8_t activePin   = runMode ? PIN_RUN  : PIN_IDLE;
-        uint8_t inactivePin = runMode ? PIN_IDLE : PIN_RUN;
+        // Fast task: scan test case LEDs every tick
+        scanTestCaseLEDs();
 
-        // Active-low LEDs: ON = LOW, OFF = HIGH
-        ledState = !ledState;
-        funDigitalWrite(activePin,   ledState ? FUN_LOW : FUN_HIGH);
-        funDigitalWrite(inactivePin, FUN_HIGH);  // keep the other one OFF
+        // Slow task: toggle status LED every 500ms (50 ticks)
+        if (tickCount >= 50) {
+            tickCount = 0;
+            flashState = !flashState;
+
+            uint8_t activePin   = runMode ? PIN_RUN  : PIN_IDLE;
+            uint8_t inactivePin = runMode ? PIN_IDLE : PIN_RUN;
+
+            funDigitalWrite(activePin,   flashState ? FUN_LOW : FUN_HIGH);
+            funDigitalWrite(inactivePin, FUN_HIGH);
+        }
     }
 }
+
+// Non-blocking delay using tickCount
+void waitTicks(uint16_t ticks) {
+    uint16_t start = tickCount;
+    while ((tickCount - start) < ticks) {
+        // Let ISR run
+        printf(".");
+    }
+}
+
 
 // Initialize status LED pins and TIM1 for periodic toggling
 void setupStatusFlasher(void)
 {
-    // Pins already configured in setupPins(); ensure OFF to start
-    funDigitalWrite(PIN_RUN,  FUN_HIGH);
-    funDigitalWrite(PIN_IDLE, FUN_HIGH);
-
     // Enable and reset TIM1 (on APB2)
     RCC->APB2PCENR |= RCC_APB2Periph_TIM1;
     RCC->APB2PRSTR |= RCC_APB2Periph_TIM1;
@@ -101,7 +130,6 @@ void runStatus(bool isRun)
     funDigitalWrite(PIN_IDLE, FUN_HIGH);
 }
 
-
 void setupPins() {
     funGpioInitAll();
 
@@ -115,14 +143,14 @@ void setupPins() {
 
     // Columns (active HIGH, but row must be LOW to light LED)
     for (int i = 0; i < 5; i++) {
-        funPinMode(cols[i], GPIO_Speed_10MHz | GPIO_CNF_OUT_PP);
-        funDigitalWrite(cols[i], FUN_LOW); // Start all columns LOW
+        funPinMode(testCols[i], GPIO_Speed_10MHz | GPIO_CNF_OUT_PP);
+        funDigitalWrite(testCols[i], FUN_LOW); // Start all columns LOW
     }
 
     // Rows (active LOW)
     for (int i = 0; i < 2; i++) {
-        funPinMode(rows[i], GPIO_Speed_10MHz | GPIO_CNF_OUT_PP);
-        funDigitalWrite(rows[i], FUN_HIGH); // Start all columns LOW
+        funPinMode(testRows[i], GPIO_Speed_10MHz | GPIO_CNF_OUT_PP);
+        funDigitalWrite(testRows[i], FUN_HIGH); // Start all columns LOW
     }
 }
 
@@ -154,26 +182,106 @@ void startupSequence() {
     runStatus(false); // Set IDLE flashing
 }
 
-void setTestCaseResult() {
-    // Set the test case result by an array of true or false values
+// Set the test case results via wrapper function
+void setTestCaseResult(TestCaseState states[5]) {
+    for (int i = 0; i < 5; i++) {
+        testCaseStates[i] = states[i];
+    }
 }
 
+// Scan and update the test case LEDs; to be called periodically via timer or main loop
+void scanTestCaseLEDs() {
+    for (int i = 0; i < 5; i++) {
+        uint8_t col = testCols[i];
+        TestCaseState state = testCaseStates[i];
+
+        // Activate column
+        funDigitalWrite(col, FUN_HIGH);
+
+        switch (state) {
+            case TC_NO_RESULT:
+                // Both rows OFF
+                funDigitalWrite(rowRed,   FUN_HIGH);
+                funDigitalWrite(rowGreen, FUN_HIGH);
+                break;
+            case TC_PASS:
+                funDigitalWrite(rowRed,   FUN_HIGH);
+                funDigitalWrite(rowGreen, FUN_LOW);
+                break;
+
+            case TC_FAIL:
+                funDigitalWrite(rowRed,   FUN_LOW);
+                funDigitalWrite(rowGreen, FUN_HIGH);
+                break;
+
+            case TC_IN_PROGRESS:
+                // Alternate flashing: handled by timer toggling a flag
+                if (flashState) {
+                    funDigitalWrite(rowRed,   FUN_LOW);
+                    funDigitalWrite(rowGreen, FUN_HIGH);
+                } else {
+                    funDigitalWrite(rowRed,   FUN_HIGH);
+                    funDigitalWrite(rowGreen, FUN_LOW);
+                }
+                break;
+
+            case TC_RETRY:
+                if (i == 4) {
+                    funDigitalWrite(rowRed,   flashState ? FUN_LOW : FUN_HIGH);
+                    funDigitalWrite(rowGreen, FUN_HIGH);  // Always OFF
+                }
+                break;
+        }
+
+        Delay_Ms(2);  // Short dwell time per column
+
+        // Deactivate column
+        funDigitalWrite(col, FUN_LOW);
+    }
+
+    // Reset rows to avoid ghosting
+    funDigitalWrite(rowRed,   FUN_HIGH);
+    funDigitalWrite(rowGreen, FUN_HIGH);
+}
+
+
+void runTestCaseDemo() {
+    TestCaseState demoStates[5];
+
+    demoStates[0] = TC_PASS;
+    demoStates[1] = TC_FAIL;
+    demoStates[2] = TC_IN_PROGRESS;
+    demoStates[3] = TC_PASS;
+    demoStates[4] = TC_RETRY;
+    setTestCaseResult(demoStates);
+
+    // Delay_Ms(5000);  // Initial 2 second delay
+    // waitTicks(500); // 5 seconds
+
+    demoStates[0] = TC_FAIL;
+    demoStates[1] = TC_PASS;
+    demoStates[2] = TC_FAIL;
+    demoStates[3] = TC_RETRY;
+    demoStates[4] = TC_IN_PROGRESS;
+    setTestCaseResult(demoStates);
+    waitTicks(5); // 5 seconds
+    setTestCaseResult((TestCaseState[]){ TC_PASS, TC_PASS, TC_PASS, TC_PASS, TC_PASS } );
+    setTestCaseResult((TestCaseState[]){ TC_FAIL, TC_FAIL, TC_FAIL, TC_FAIL, TC_FAIL } );
+}
 
 
 int main() {
     SystemInit();
     __enable_irq();           // Allow ISRs globally
 
+    printf("Tester PCB Business Card Runtime\n");
     setupPins();
     startupSequence();
-
+    printf("Running test case demo\n");
+    runTestCaseDemo();
+    printf("Demo complete. Entering main loop.\n");
     while (1) {
         // Do main loop tasks here
-        while (1) {
-    // ledState = !ledState;
-    // funDigitalWrite(PIN_IDLE, ledState ? FUN_HIGH : FUN_LOW);
-    // Delay_Ms(500);
-}
 
     }
 }
