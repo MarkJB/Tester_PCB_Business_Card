@@ -71,6 +71,7 @@ static inline void gpio_clear(GPIO_TypeDef* p, uint16_t m) { p->BCR  = m; }
 static const struct { GPIO_TypeDef* port; uint16_t mask; } COL[5] = {
     {GPIOC, BIT(0)}, {GPIOC, BIT(1)}, {GPIOC, BIT(2)}, {GPIOC, BIT(3)}, {GPIOC, BIT(4)}
 };
+
 static const struct { GPIO_TypeDef* port; uint16_t mask; } ROW_RED   = { GPIOA, BIT(1) };
 static const struct { GPIO_TypeDef* port; uint16_t mask; } ROW_GREEN = { GPIOA, BIT(2) };
 
@@ -84,20 +85,6 @@ void HardFault_Handler(void)
     asm volatile ("csrr %0, mepc"   : "=r"(last_mepc));
     for (;;) { /* spin */ }
 }
-
-// void HardFault_Handler(void)
-// {
-//     asm volatile ("csrr %0, mcause" : "=r"(last_mcause));
-//     asm volatile ("csrr %0, mepc"   : "=r"(last_mepc));
-
-//     // Rapid flash INIT so it's visible
-//     while (1) {
-//         funDigitalWrite(PIN_INIT, FUN_LOW);
-//         for (volatile int i = 0; i < 60000; i++) {};
-//         funDigitalWrite(PIN_INIT, FUN_HIGH);
-//         for (volatile int i = 0; i < 60000; i++) {};
-//     }
-// }
 
 // -------------------- Helpers --------------------
 
@@ -121,128 +108,67 @@ static inline void setTestCaseResult(const TestCaseState states[5]) {
     __enable_irq();
 }
 
-
-// static inline void scanStep(void) {
-//     static bool rdy = false;
-//     rdy = !rdy;
-//     funDigitalWrite(PIN_RDY, rdy ? FUN_LOW : FUN_HIGH); // active LOW
-// }
-
-// static inline void scanStep(void) {
-//     gpio_set(COL[0].port, COL[0].mask); // active HIGH
-// }
-
 static inline void scanStep(void) {
-    gpio_set(COL[1].port, COL[1].mask);
-    gpio_clear(COL[1].port, COL[1].mask);
+    static int8_t prev = -1;  // last active column, -1 = none yet
+
+    // 0. Bail out early if state pointer is invalid
+    volatile const TestCaseState* states = activeStates;
+    if (states == NULL) {
+        // Ensure all LEDs off
+        gpio_set(ROW_RED.port,   ROW_RED.mask);
+        gpio_set(ROW_GREEN.port, ROW_GREEN.mask);
+        return;
+    }
+
+    // 1. Turn both rows OFF (active LOW → drive HIGH) before touching columns
+    gpio_set(ROW_RED.port,   ROW_RED.mask);
+    gpio_set(ROW_GREEN.port, ROW_GREEN.mask);
+
+    // 2. Clear the previous column if it was valid
+    if (prev >= 0 && prev < 5) {
+        if (COL[prev].port != NULL) {
+            gpio_clear(COL[prev].port, COL[prev].mask);
+        }
+    }
+
+    // 3. Decide what to light for the current column (only if in range)
+    if (currentCol >= 0 && currentCol < 5) {
+        TestCaseState state = states[currentCol];
+
+        switch (state) {
+            case TC_PASS:
+                gpio_clear(ROW_GREEN.port, ROW_GREEN.mask); // green ON
+                break;
+            case TC_FAIL:
+                gpio_clear(ROW_RED.port, ROW_RED.mask);     // red ON
+                break;
+            case TC_IN_PROGRESS:
+                if (flashState)
+                    gpio_clear(ROW_RED.port, ROW_RED.mask);
+                else
+                    gpio_clear(ROW_GREEN.port, ROW_GREEN.mask);
+                break;
+            case TC_RETRY:
+                if (flashState)
+                    gpio_clear(ROW_RED.port, ROW_RED.mask);
+                break;
+            case TC_NO_RESULT:
+            default:
+                // both rows stay off
+                break;
+        }
+
+        // 4. Set the current column HIGH (active HIGH)
+        if (COL[currentCol].port != NULL) {
+            gpio_set(COL[currentCol].port, COL[currentCol].mask);
+        }
+    }
+
+    // 5. Advance indices for next tick
+    prev = currentCol;
+    currentCol = (currentCol + 1) % 5;
 }
 
-
-// Phased probe: one write per tick to find the wedging operation
-// static inline void scanStep(void) {
-//     static uint8_t phase = 0;      // advances 0..7 repeatedly
-//     static int8_t  prev  = -1;     // previous column index
-//     static uint8_t col   = 0;      // current column index (0..4)
-
-//     // Show ISR progress by ticking RDY each tick (toggle)
-//     static bool rdy = false;
-//     rdy = !rdy;
-//     funDigitalWrite(PIN_RDY, rdy ? FUN_LOW : FUN_HIGH); // active LOW
-
-//     switch (phase) {
-//         case 0:
-//             // 0) rows OFF (active LOW -> set HIGH)
-//             gpio_set(ROW_RED.port,   ROW_RED.mask);
-//             break;
-
-//         case 1:
-//             // 1) rows OFF (green)
-//             gpio_set(ROW_GREEN.port, ROW_GREEN.mask);
-//             break;
-
-//         case 2:
-//             // 2) turn OFF previous column (if any)
-//             if (prev >= 0) gpio_clear(COL[prev].port, COL[prev].mask);
-//             break;
-
-//         case 3:
-//             // 3) drive rows for current column: PASS => green ON (LOW)
-//             gpio_clear(ROW_GREEN.port, ROW_GREEN.mask);
-//             break;
-
-//         case 4:
-//             // 4) turn ON current column (active HIGH)
-//             gpio_set(COL[col].port, COL[col].mask);
-//             break;
-
-//         case 5:
-//             // 5) do nothing (gap)
-//             break;
-
-//         case 6:
-//             // 6) advance column index
-//             prev = col;
-//             col = (uint8_t)((col + 1) % 5);
-//             break;
-
-//         case 7:
-//             // 7) do nothing (gap)
-//             break;
-//     }
-
-//     // Advance to next phase each tick
-//     phase = (uint8_t)((phase + 1) & 7);
-// }
-
-
-// static inline void scanStep(void) {
-//     static int8_t prevCol = -1;
-
-//     // Turn off previous column (active HIGH -> write LOW)
-//     if (prevCol >= 0) {
-//         // funDigitalWrite(testCols[prevCol], FUN_LOW);
-//     }
-
-//     // Default rows OFF (active LOW -> write HIGH)
-//     // funDigitalWrite(PIN_ROW_R, FUN_HIGH);
-//     // funDigitalWrite(PIN_ROW_G, FUN_HIGH);
-
-//     // Drive rows for this column based on state
-//     const  volatile TestCaseState* states = activeStates;
-//     TestCaseState state = states[currentCol];
-
-//     switch (state) {
-//         case TC_NO_RESULT:
-//             // both OFF
-//             break;
-//         case TC_PASS:
-//             // funDigitalWrite(PIN_ROW_G, FUN_LOW);
-//             break;
-//         case TC_FAIL:
-//             // funDigitalWrite(PIN_ROW_R, FUN_LOW);
-//             break;
-//         case TC_IN_PROGRESS:
-//             if (flashState) {
-//                 // funDigitalWrite(PIN_ROW_R, FUN_LOW);
-//             }
-//             else {
-//                 // funDigitalWrite(PIN_ROW_G, FUN_LOW);
-//             }
-//             break;
-//         case TC_RETRY:
-//             if (currentCol == 4) { // only TC5 flashes red
-//                 // if (flashState) funDigitalWrite(PIN_ROW_R, FUN_LOW);
-//             }
-//             break;
-//     }
-
-//     // Turn on this column last (active HIGH)
-//     // funDigitalWrite(testCols[currentCol], FUN_HIGH);
-
-//     // Advance
-//     prevCol = currentCol;
-//     currentCol = (currentCol + 1) % 5;
-// }
 
 static inline void waitTicks(uint32_t ticks) {
     uint32_t start = msTicks;
@@ -266,23 +192,19 @@ static inline void serviceStatusLeds(void) {
 
 // -------------------- Timer ISR --------------------
 
-void TIM1_UP_IRQHandler(void) __attribute__((interrupt("WCH-Interrupt-fast")));
+void TIM1_UP_IRQHandler(void) INTERRUPT_DECORATOR;
 void TIM1_UP_IRQHandler(void)
 {
-    if (TIM1->INTFR & TIM_UIF)
-    {
-        // Clear update flag only
+    if (TIM1->INTFR & TIM_UIF) {
         TIM1->INTFR &= ~TIM_UIF;
-
         msTicks++;
-        scanStep();
 
-        // Flip flashState every 250 ms for TC blinking
         static uint32_t nextFlashAt = 250;
         if (msTicks >= nextFlashAt) {
             nextFlashAt += 250;
             flashState = !flashState;
         }
+        scanStep();
     }
 }
 
@@ -345,38 +267,6 @@ static inline void setupPins(void) {
     } 
 }
 
-
-
-// static inline void setupPins(void) {
-//     funGpioInitAll();
-//     RCC->APB2PCENR |= RCC_APB2Periph_GPIOA | RCC_APB2Periph_GPIOC | RCC_APB2Periph_GPIOD;
-
-
-//     // Status LEDs (active LOW)
-//     for (int i = 0; i < 5; i++) {
-//         funPinMode(statusLEDs[i], GPIO_Speed_10MHz | GPIO_CNF_OUT_PP);
-//         funDigitalWrite(statusLEDs[i], FUN_HIGH); // OFF
-//     }
-
-//     // Test case columns (active HIGH)
-//     for (int i = 0; i < 5; i++) {
-//         funPinMode(testCols[i], GPIO_Speed_10MHz | GPIO_CNF_OUT_PP);
-//         funDigitalWrite(testCols[i], FUN_LOW); // start OFF
-//     }
-
-//     // Test case rows (active LOW -> set HIGH to turn OFF)
-//     for (int i = 0; i < 2; i++) {
-//         funPinMode(testRows[i], GPIO_Speed_10MHz | GPIO_CNF_OUT_PP);
-//         funDigitalWrite(testRows[i], FUN_HIGH);
-//     }
-
-//     // Inputs with pull-ups
-//     for (int i = 0; i < 4; i++) {
-//         funPinMode(inputPins[i], GPIO_CNF_IN_PUPD);
-//         funDigitalWrite(inputPins[i], FUN_HIGH);
-//     }
-// }
-
 static inline void startupSequence(void) {
     funDigitalWrite(PIN_PWR, FUN_LOW); // PWR stays on
 
@@ -393,6 +283,7 @@ static inline void startupSequence(void) {
 
     // Start timer and set IDLE flashing
     setupStatusFlasher();
+    __enable_irq();         // enable global interrupts
     runStatus(false);
 }
 
@@ -434,77 +325,19 @@ static inline void runTestCaseDemo(void) {
 int main(void) {
     SystemInit();
     setupPins();
-    setupStatusFlasher(); // start timer early for debug
-
-    funDigitalWrite(PIN_ROW_G, FUN_LOW); // Active LOW
-        
-    funDigitalWrite(PIN_COL_A, FUN_HIGH);
-    funDigitalWrite(PIN_COL_B, FUN_HIGH);
-    funDigitalWrite(PIN_COL_C, FUN_HIGH); // active HIGH
-    funDigitalWrite(PIN_COL_D, FUN_HIGH);
-    funDigitalWrite(PIN_COL_E, FUN_HIGH);
-
-    waitTicks(1000);
-
-    funDigitalWrite(PIN_COL_A, FUN_LOW);
-    funDigitalWrite(PIN_COL_B, FUN_LOW);
-    funDigitalWrite(PIN_COL_C, FUN_LOW); // active HIGH
-    funDigitalWrite(PIN_COL_D, FUN_LOW);
-    funDigitalWrite(PIN_COL_E, FUN_LOW);
-
-    waitTicks(1000);
-
-    funDigitalWrite(PIN_COL_A, FUN_HIGH);
-    funDigitalWrite(PIN_COL_B, FUN_HIGH);
-    funDigitalWrite(PIN_COL_C, FUN_HIGH); // active HIGH
-    funDigitalWrite(PIN_COL_D, FUN_HIGH);
-    funDigitalWrite(PIN_COL_E, FUN_HIGH);
-
-    waitTicks(1000);
-
-    funDigitalWrite(PIN_COL_A, FUN_LOW);
-    funDigitalWrite(PIN_COL_B, FUN_LOW);
-    funDigitalWrite(PIN_COL_C, FUN_LOW); // active HIGH
-    funDigitalWrite(PIN_COL_D, FUN_LOW);
-    funDigitalWrite(PIN_COL_E, FUN_LOW);
-
-    waitTicks(1000);
-    
-    funDigitalWrite(PIN_ROW_G, FUN_HIGH);  // Turn off Green
-    funDigitalWrite(PIN_ROW_R, FUN_LOW);  // Turn on Red
-    
-    funDigitalWrite(PIN_COL_A, FUN_HIGH);
-    funDigitalWrite(PIN_COL_B, FUN_HIGH);
-    funDigitalWrite(PIN_COL_C, FUN_HIGH); // active HIGH
-    funDigitalWrite(PIN_COL_D, FUN_HIGH);
-    funDigitalWrite(PIN_COL_E, FUN_HIGH);
-
-    waitTicks(1000);
-
-    funDigitalWrite(PIN_COL_A, FUN_LOW);
-    funDigitalWrite(PIN_COL_B, FUN_LOW);
-    funDigitalWrite(PIN_COL_C, FUN_LOW); // active HIGH
-    funDigitalWrite(PIN_COL_D, FUN_LOW);
-    funDigitalWrite(PIN_COL_E, FUN_LOW);
-
-    waitTicks(1000);
 
     initTestCaseStates();   // publish valid buffer before timer starts
-    __enable_irq();         // enable global interrupts
+    
     startupSequence();      // starts TIM1 and sets IDLE mode
 
-    // runTestCaseDemo();
+    waitTicks(1000); // let it settle
+
+    runTestCaseDemo();
 
     while (1) {
         serviceStatusLeds();  // update RUN/IDLE outside ISR
         __WFI();
-        static uint32_t lastBlink = 0;
-if ((uint32_t)(msTicks - lastBlink) >= 200) {
-    lastBlink += 200;
-    static bool idleBlink = false;
-    idleBlink = !idleBlink;
-    funDigitalWrite(PIN_IDLE, idleBlink ? FUN_LOW : FUN_HIGH); // active LOW
+        }
+
 }
 
-    }
-}
