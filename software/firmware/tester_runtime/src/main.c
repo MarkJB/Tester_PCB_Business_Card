@@ -57,12 +57,14 @@ typedef enum {
     TC_NO_RESULT,
     TC_PASS,
     TC_FAIL,
+    TC_WARNING,
     TC_IN_PROGRESS,
     TC_RETRY
 } TestCaseState;
 
 volatile bool runMode      = false;  // false = IDLE, true = RUN
 volatile bool flashState   = false;  // toggles every 250 ms
+volatile bool rapidFlashState   = false;  // toggles every 125 ms
 volatile uint32_t msTicks  = 0;      // monotonic ms counter
 volatile uint8_t currentCol = 0;     // scan index
 
@@ -169,8 +171,12 @@ static inline void scanStep(void) {
                 else
                     gpio_clear(ROW_GREEN.port, ROW_GREEN.mask);
                 break;
-            case TC_RETRY:
+            case TC_WARNING:
                 if (flashState)
+                    gpio_clear(ROW_RED.port, ROW_RED.mask);
+                break;
+            case TC_RETRY:
+                if (rapidFlashState)
                     gpio_clear(ROW_RED.port, ROW_RED.mask);
                 break;
             case TC_NO_RESULT:
@@ -265,6 +271,11 @@ void TIM1_UP_IRQHandler(void)
         if (msTicks >= nextFlashAt) {
             nextFlashAt += 250;
             flashState = !flashState;
+        }
+                static uint32_t nextRapidFlashAt = 125;
+        if (msTicks >= nextRapidFlashAt) {
+            nextRapidFlashAt += 125;
+            rapidFlashState = !rapidFlashState;
         }
         scanStep();
         
@@ -508,13 +519,13 @@ static void tc3_update(void) {
 static TestCaseState tc3_eval(void) {
     // Decision table mapping
     if (!seenA3 && !seenB3 && !seenC3) return TC_FAIL;   // 000
-    if (!seenA3 && !seenB3 &&  seenC3) return TC_RETRY;  // 001
-    if (!seenA3 &&  seenB3 && !seenC3) return TC_RETRY;  // 010
+    if (!seenA3 && !seenB3 &&  seenC3) return TC_WARNING;  // 001
+    if (!seenA3 &&  seenB3 && !seenC3) return TC_WARNING;  // 010
     if (!seenA3 &&  seenB3 &&  seenC3) return TC_PASS;   // 011 ✅
     if ( seenA3 && !seenB3 && !seenC3) return TC_FAIL;   // 100
-    if ( seenA3 && !seenB3 &&  seenC3) return TC_RETRY;  // 101
-    if ( seenA3 &&  seenB3 && !seenC3) return TC_RETRY;  // 110
-    if ( seenA3 &&  seenB3 &&  seenC3) return TC_RETRY;  // 111
+    if ( seenA3 && !seenB3 &&  seenC3) return TC_WARNING;  // 101
+    if ( seenA3 &&  seenB3 && !seenC3) return TC_WARNING;  // 110
+    if ( seenA3 &&  seenB3 &&  seenC3) return TC_WARNING;  // 111
     return TC_FAIL;
 }
 
@@ -561,13 +572,11 @@ static TestCaseState tc4_eval(void) {
     bool borderlineC = validC && (countC4 == C_MIN || countC4 == C_MAX);
 
     if (borderlineA || borderlineB || borderlineC) {
-        return TC_RETRY; // blink pattern for borderline
+        return TC_WARNING; // blink pattern for borderline
     }
 
     return TC_PASS;
 }
-
-
 
 // ===== Test case framework =====
 
@@ -577,7 +586,6 @@ static const TestCaseDef testCases[] = {
     { 5000, tc2_init, tc2_update, tc2_eval },
     { 5000, tc3_init, tc3_update, tc3_eval },
     { 5000, tc4_init, tc4_update, tc4_eval },
-    
 };
 
 static const size_t NUM_TEST_CASES = sizeof(testCases) / sizeof(testCases[0]);
