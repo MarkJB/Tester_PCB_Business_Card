@@ -44,10 +44,12 @@ typedef struct {
     uint32_t lastPressTime;
     uint32_t lastReleaseTime;
     uint16_t pressCount;
-    bool     pressed;
+    bool     pressed;      // true while button is physically held down
+    bool     justPressed;  // true only on the tick a press is first detected, until consumed
 } ButtonState;
 
 volatile ButtonState buttons[4];
+
 static uint8_t lastButtonSample = 0xFF; // all released (active-low)
 
 
@@ -91,7 +93,7 @@ static const struct { GPIO_TypeDef* port; uint16_t mask; } ROW_GREEN = { GPIOA, 
 
 // port/mask map for input buttons
 static const struct { GPIO_TypeDef* port; uint16_t mask; } BTN[4] = {
-    {GPIOD, BIT(3)}, {GPIOD, BIT(2)}, {GPIOD, BIT(4)}, {GPIOD, BIT(5)}
+    {GPIOD, BIT(2)}, {GPIOD, BIT(3)}, {GPIOD, BIT(4)}, {GPIOD, BIT(5)}
 };
 
 
@@ -223,23 +225,25 @@ static inline void pollButtons(void) {
     if (changed) {
         for (int i = 0; i < 4; i++) {
             if ((changed & (1 << i)) && (sample & (1 << i))) {
-                // Pressed
-                buttons[i].pressed = true;
+                // Rising edge: Pressed
+                buttons[i].pressed = true;       // level
+                buttons[i].justPressed = true;   // new: one-shot event
                 buttons[i].lastPressTime = msTicks;
                 buttons[i].pressCount++;
 
                 // Start INIT LED pulse
                 gpio_clear(GPIOC, BIT(6)); // INIT LED on (active low)
                 initLedOffAt = msTicks + 50; // 50 ms pulse
+
             } else if (changed & (1 << i)) {
-                // Released
+                // Falling edge: Released
                 buttons[i].pressed = false;
                 buttons[i].lastReleaseTime = msTicks;
             }
         }
     }
 
-    // End pulse if time elapsed
+    // End INIT LED pulse if time elapsed
     if (initLedOffAt && msTicks >= initLedOffAt) {
         gpio_set(GPIOC, BIT(6)); // INIT LED off
         initLedOffAt = 0;
@@ -404,66 +408,164 @@ static inline void runTestCaseDemo(void) {
 // -------------------- App logic --------------------
 
 static TestCaseState tcResults[5] = { TC_NO_RESULT };
-
 typedef struct {
-    uint32_t durationMs;  // fixed duration
-    bool (*evalFn)(void); // returns pass/fail
+    uint32_t durationMs;
+    void (*initFn)(void);
+    void (*updateFn)(void);
+    TestCaseState (*evalFn)(void);
 } TestCaseDef;
+
 
 static uint8_t currentTest = 0;
 static uint32_t testStartTime = 0;
 static bool testActive = false;
 
-// For simple “all A–C pressed” tracking
-static bool seenA = false, seenB = false, seenC = false;
+// ===== TC1: All A–C pressed =====
+static bool seenA, seenB, seenC;
 
-static bool eval_all_ABC(void) {
-    return seenA && seenB && seenC;
+static void tc1_init(void) {
+    seenA = seenB = seenC = false;
 }
 
-static const TestCaseDef testCases[4] = {
-    { 5000, eval_all_ABC }, // 5s test
-    { 5000, eval_all_ABC }, // placeholder
-    { 5000, eval_all_ABC }, // placeholder
-    { 5000, eval_all_ABC }  // placeholder
+static void tc1_update(void) {
+    if (buttons[0].pressed) seenA = true;
+    if (buttons[1].pressed) seenB = true;
+    if (buttons[2].pressed) seenC = true;
+}
+
+static TestCaseState tc1_eval(void) {
+    return (seenA && seenB && seenC) ? TC_PASS : TC_FAIL;
+}
+
+// ===== TC2: Debounce timing =====
+static uint32_t firstPressTimeB, lastPressTimeB;
+static uint8_t pressCountB;
+static const uint32_t DEBOUNCE_THRESHOLD_MS = 200;
+
+// TC2: Fast double-press detection
+static uint32_t pressTimes[4];
+static uint8_t pressIndex;
+static const uint32_t FAST_THRESHOLD_MS = 200;
+static const uint32_t MIN_GAP_MS        = 30;  // reject bounce
+
+static void tc2_init(void) {
+    pressIndex = 0;
+}
+
+static void tc2_update(void) {
+    if (buttons[1].justPressed) {
+        buttons[1].justPressed = false; // consume event
+        if (pressIndex < 4) {
+            pressTimes[pressIndex++] = msTicks;
+        }
+    }
+}
+
+static TestCaseState tc2_eval(void) {
+    if (pressCountB < 2) {
+        return TC_FAIL; // no presses or only one press
+    }
+
+    uint32_t gap = lastPressTimeB - firstPressTimeB;
+
+    if (gap < MIN_GAP_MS) {
+        return TC_FAIL; // bounce
+    }
+    if (gap >= FAST_THRESHOLD_MS) {
+        return TC_FAIL; // too slow
+    }
+
+    return TC_PASS; // valid fast double press
+}
+
+
+// ===== TC3: Conditional Logic – Decision Table Test =====
+
+// Latch states for A, B, C during the 5s window
+static bool seenA3, seenB3, seenC3;
+
+static void tc3_init(void) {
+    seenA3 = seenB3 = seenC3 = false;
+}
+
+static void tc3_update(void) {
+    if (buttons[0].justPressed) { 
+        buttons[0].justPressed = false; 
+        seenA3 = !seenA3; // toggle
+    }
+    if (buttons[1].justPressed) { 
+        buttons[1].justPressed = false; 
+        seenB3 = !seenB3; // toggle
+    }
+    if (buttons[2].justPressed) { 
+        buttons[2].justPressed = false; 
+        seenC3 = !seenC3; // toggle
+    }
+}
+
+
+// Decision table returning your existing TestCaseState
+static TestCaseState tc3_eval(void) {
+    // Decision table mapping
+    if (!seenA3 && !seenB3 && !seenC3) return TC_FAIL;   // 000
+    if (!seenA3 && !seenB3 &&  seenC3) return TC_RETRY;  // 001
+    if (!seenA3 &&  seenB3 && !seenC3) return TC_RETRY;  // 010
+    if (!seenA3 &&  seenB3 &&  seenC3) return TC_PASS;   // 011 ✅
+    if ( seenA3 && !seenB3 && !seenC3) return TC_FAIL;   // 100
+    if ( seenA3 && !seenB3 &&  seenC3) return TC_RETRY;  // 101
+    if ( seenA3 &&  seenB3 && !seenC3) return TC_RETRY;  // 110
+    if ( seenA3 &&  seenB3 &&  seenC3) return TC_RETRY;  // 111
+    return TC_FAIL;
+}
+
+
+// ===== Test case framework =====
+
+
+static const TestCaseDef testCases[] = {
+    { 5000, tc1_init, tc1_update, tc1_eval },
+    { 5000, tc2_init, tc2_update, tc2_eval },
+    { 5000, tc3_init, tc3_update, tc3_eval },
 };
 
+static const size_t NUM_TEST_CASES = sizeof(testCases) / sizeof(testCases[0]);
+
 static void startTest(uint8_t idx) {
-    currentTest = idx;
+    if (idx == 0) {
+        for (size_t i = 0; i < NUM_TEST_CASES; i++) {
+            tcResults[i] = TC_NO_RESULT;
+        }
+    }
     testStartTime = msTicks;
     testActive = true;
-    seenA = seenB = seenC = false;
 
-    runStatus(true); // RUN LED
-    TestCaseState states[5] = { TC_NO_RESULT };
-    states[idx] = TC_IN_PROGRESS;
-    setTestCaseResult(states);
+    runStatus(true);
+    tcResults[idx] = TC_IN_PROGRESS;
+    setTestCaseResult(tcResults);
+
+    testCases[idx].initFn(); // per-test init
 }
 
 static void endTest(void) {
     testActive = false;
-    runStatus(false); // IDLE LED
+    runStatus(false);
 
-    bool pass = testCases[currentTest].evalFn();
-    TestCaseState states[5] = { TC_NO_RESULT };
-    states[currentTest] = pass ? TC_PASS : TC_FAIL;
-    setTestCaseResult(states);
+    TestCaseState outcome = testCases[currentTest].evalFn();
+    tcResults[currentTest] = outcome;
+    setTestCaseResult(tcResults);
 
-    // Advance to next test (wrap after 4)
-    currentTest = (currentTest + 1) % 4;
+    currentTest = (currentTest + 1) % NUM_TEST_CASES;
 }
 
 static void monitorInputs(void) {
     if (!testActive) return;
-
-    if (buttons[0].pressed) seenA = true; // BTN A
-    if (buttons[1].pressed) seenB = true; // BTN B
-    if (buttons[2].pressed) seenC = true; // BTN C
-
+    testCases[currentTest].updateFn(); // per-test input handling
     if ((uint32_t)(msTicks - testStartTime) >= testCases[currentTest].durationMs) {
         endTest();
     }
 }
+
+
 
 
 // -------------------- Main --------------------
