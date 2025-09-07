@@ -519,6 +519,56 @@ static TestCaseState tc3_eval(void) {
 }
 
 
+// ===== TC4: Input Range Check =====
+
+// Press counters for A, B, C
+static uint8_t countA4, countB4, countC4;
+
+// Valid ranges
+#define A_MIN 1
+#define A_MAX 3
+#define B_MIN 5
+#define B_MAX 7
+#define C_MIN 2
+#define C_MAX 4
+
+static void tc4_init(void) {
+    countA4 = countB4 = countC4 = 0;
+}
+
+static void tc4_update(void) {
+    if (buttons[0].justPressed) { buttons[0].justPressed = false; countA4++; }
+    if (buttons[1].justPressed) { buttons[1].justPressed = false; countB4++; }
+    if (buttons[2].justPressed) { buttons[2].justPressed = false; countC4++; }
+}
+
+static TestCaseState tc4_eval(void) {
+    bool validA = (countA4 >= A_MIN && countA4 <= A_MAX);
+    bool validB = (countB4 >= B_MIN && countB4 <= B_MAX);
+    bool validC = (countC4 >= C_MIN && countC4 <= C_MAX);
+
+    bool anyValid = validA || validB || validC;
+
+    // For now, map to overall PASS/FAIL/RETRY
+    // You could extend this to show per‑input LEDs if hardware supports it
+    if (!anyValid) {
+        return TC_FAIL;
+    }
+
+    // Optional: treat borderline values (exactly at min or max) as RETRY
+    bool borderlineA = validA && (countA4 == A_MIN || countA4 == A_MAX);
+    bool borderlineB = validB && (countB4 == B_MIN || countB4 == B_MAX);
+    bool borderlineC = validC && (countC4 == C_MIN || countC4 == C_MAX);
+
+    if (borderlineA || borderlineB || borderlineC) {
+        return TC_RETRY; // blink pattern for borderline
+    }
+
+    return TC_PASS;
+}
+
+
+
 // ===== Test case framework =====
 
 
@@ -526,6 +576,8 @@ static const TestCaseDef testCases[] = {
     { 5000, tc1_init, tc1_update, tc1_eval },
     { 5000, tc2_init, tc2_update, tc2_eval },
     { 5000, tc3_init, tc3_update, tc3_eval },
+    { 5000, tc4_init, tc4_update, tc4_eval },
+    
 };
 
 static const size_t NUM_TEST_CASES = sizeof(testCases) / sizeof(testCases[0]);
@@ -564,9 +616,6 @@ static void monitorInputs(void) {
         endTest();
     }
 }
-
-
-
 
 // -------------------- Main --------------------
 
