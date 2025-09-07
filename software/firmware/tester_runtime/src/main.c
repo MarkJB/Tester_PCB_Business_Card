@@ -40,6 +40,17 @@ static const uint16_t inputPins[]  = { PIN_INPUT_A, PIN_INPUT_B, PIN_INPUT_C, PI
 
 // -------------------- State and flags --------------------
 
+typedef struct {
+    uint32_t lastPressTime;
+    uint32_t lastReleaseTime;
+    uint16_t pressCount;
+    bool     pressed;
+} ButtonState;
+
+volatile ButtonState buttons[4];
+static uint8_t lastButtonSample = 0xFF; // all released (active-low)
+
+
 typedef enum {
     TC_NO_RESULT,
     TC_PASS,
@@ -66,6 +77,9 @@ volatile uint32_t last_mcause = 0, last_mepc = 0;
 #define BIT(n) (1U << (n))
 static inline void gpio_set(GPIO_TypeDef* p, uint16_t m)   { p->BSHR = m; }
 static inline void gpio_clear(GPIO_TypeDef* p, uint16_t m) { p->BCR  = m; }
+static inline uint8_t gpio_get(GPIO_TypeDef* p, uint16_t m) {
+    return (p->INDR & m) ? 1U : 0U;
+}
 
 // --- Explicit port/mask map for columns and rows ---
 static const struct { GPIO_TypeDef* port; uint16_t mask; } COL[5] = {
@@ -74,6 +88,11 @@ static const struct { GPIO_TypeDef* port; uint16_t mask; } COL[5] = {
 
 static const struct { GPIO_TypeDef* port; uint16_t mask; } ROW_RED   = { GPIOA, BIT(1) };
 static const struct { GPIO_TypeDef* port; uint16_t mask; } ROW_GREEN = { GPIOA, BIT(2) };
+
+// port/mask map for input buttons
+static const struct { GPIO_TypeDef* port; uint16_t mask; } BTN[4] = {
+    {GPIOD, BIT(3)}, {GPIOD, BIT(2)}, {GPIOD, BIT(4)}, {GPIOD, BIT(5)}
+};
 
 
 // -------------------- Hard fault handler --------------------
@@ -190,6 +209,45 @@ static inline void serviceStatusLeds(void) {
     }
 }
 
+static uint32_t initLedOffAt = 0;
+
+static inline void pollButtons(void) {
+    uint8_t sample = 0;
+    for (int i = 0; i < 4; i++) {
+        if (!gpio_get(BTN[i].port, BTN[i].mask)) {
+            sample |= (1 << i);
+        }
+    }
+
+    uint8_t changed = sample ^ lastButtonSample;
+    if (changed) {
+        for (int i = 0; i < 4; i++) {
+            if ((changed & (1 << i)) && (sample & (1 << i))) {
+                // Pressed
+                buttons[i].pressed = true;
+                buttons[i].lastPressTime = msTicks;
+                buttons[i].pressCount++;
+
+                // Start INIT LED pulse
+                gpio_clear(GPIOC, BIT(6)); // INIT LED on (active low)
+                initLedOffAt = msTicks + 50; // 50 ms pulse
+            } else if (changed & (1 << i)) {
+                // Released
+                buttons[i].pressed = false;
+                buttons[i].lastReleaseTime = msTicks;
+            }
+        }
+    }
+
+    // End pulse if time elapsed
+    if (initLedOffAt && msTicks >= initLedOffAt) {
+        gpio_set(GPIOC, BIT(6)); // INIT LED off
+        initLedOffAt = 0;
+    }
+
+    lastButtonSample = sample;
+}
+
 // -------------------- Timer ISR --------------------
 
 void TIM1_UP_IRQHandler(void) INTERRUPT_DECORATOR;
@@ -198,13 +256,14 @@ void TIM1_UP_IRQHandler(void)
     if (TIM1->INTFR & TIM_UIF) {
         TIM1->INTFR &= ~TIM_UIF;
         msTicks++;
-
+        pollButtons();
         static uint32_t nextFlashAt = 250;
         if (msTicks >= nextFlashAt) {
             nextFlashAt += 250;
             flashState = !flashState;
         }
         scanStep();
+        
     }
 }
 
@@ -267,6 +326,29 @@ static inline void setupPins(void) {
     } 
 }
 
+static inline void testCaseLEDStartupPattern(void) {
+    static TestCaseState demoStates[5];
+
+    // Repeat the above 3 times so it looks like a "chase"
+    for (int k = 0; k < 4; k++) {
+        for (int i = 0; i < 5; i++) {
+            for (int j = 0; j < 5; j++) demoStates[j] = TC_NO_RESULT;
+            demoStates[i] = TC_PASS;
+            setTestCaseResult(demoStates);
+            waitTicks(30);
+        }
+        for (int i = 4; i >= 0; i--) {
+            for (int j = 0; j < 5; j++) demoStates[j] = TC_NO_RESULT;
+            demoStates[i] = TC_FAIL;
+            setTestCaseResult(demoStates);
+            waitTicks(30);
+        }
+    }
+    // end with all off
+    for (int j = 0; j < 5; j++) demoStates[j] = TC_NO_RESULT;
+    setTestCaseResult(demoStates);
+}
+
 static inline void startupSequence(void) {
     funDigitalWrite(PIN_PWR, FUN_LOW); // PWR stays on
 
@@ -285,9 +367,11 @@ static inline void startupSequence(void) {
     setupStatusFlasher();
     __enable_irq();         // enable global interrupts
     runStatus(false);
+    testCaseLEDStartupPattern();
 }
 
 // -------------------- App logic --------------------
+
 
 static inline void runTestCaseDemo(void) {
     static TestCaseState demoStates[5];
@@ -324,15 +408,17 @@ static inline void runTestCaseDemo(void) {
 
 int main(void) {
     SystemInit();
+
     setupPins();
 
     initTestCaseStates();   // publish valid buffer before timer starts
     
     startupSequence();      // starts TIM1 and sets IDLE mode
 
-    waitTicks(1000); // let it settle
+    waitTicks(100); // let it settle
 
-    runTestCaseDemo();
+    // runTestCaseDemo();
+    // testCaseLEDStartupPattern();
 
     while (1) {
         serviceStatusLeds();  // update RUN/IDLE outside ISR
