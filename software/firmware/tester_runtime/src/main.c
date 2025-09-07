@@ -370,9 +370,6 @@ static inline void startupSequence(void) {
     testCaseLEDStartupPattern();
 }
 
-// -------------------- App logic --------------------
-
-
 static inline void runTestCaseDemo(void) {
     static TestCaseState demoStates[5];
 
@@ -404,6 +401,71 @@ static inline void runTestCaseDemo(void) {
     setTestCaseResult(demoStates);
 }
 
+// -------------------- App logic --------------------
+
+static TestCaseState tcResults[5] = { TC_NO_RESULT };
+
+typedef struct {
+    uint32_t durationMs;  // fixed duration
+    bool (*evalFn)(void); // returns pass/fail
+} TestCaseDef;
+
+static uint8_t currentTest = 0;
+static uint32_t testStartTime = 0;
+static bool testActive = false;
+
+// For simple “all A–C pressed” tracking
+static bool seenA = false, seenB = false, seenC = false;
+
+static bool eval_all_ABC(void) {
+    return seenA && seenB && seenC;
+}
+
+static const TestCaseDef testCases[4] = {
+    { 5000, eval_all_ABC }, // 5s test
+    { 5000, eval_all_ABC }, // placeholder
+    { 5000, eval_all_ABC }, // placeholder
+    { 5000, eval_all_ABC }  // placeholder
+};
+
+static void startTest(uint8_t idx) {
+    currentTest = idx;
+    testStartTime = msTicks;
+    testActive = true;
+    seenA = seenB = seenC = false;
+
+    runStatus(true); // RUN LED
+    TestCaseState states[5] = { TC_NO_RESULT };
+    states[idx] = TC_IN_PROGRESS;
+    setTestCaseResult(states);
+}
+
+static void endTest(void) {
+    testActive = false;
+    runStatus(false); // IDLE LED
+
+    bool pass = testCases[currentTest].evalFn();
+    TestCaseState states[5] = { TC_NO_RESULT };
+    states[currentTest] = pass ? TC_PASS : TC_FAIL;
+    setTestCaseResult(states);
+
+    // Advance to next test (wrap after 4)
+    currentTest = (currentTest + 1) % 4;
+}
+
+static void monitorInputs(void) {
+    if (!testActive) return;
+
+    if (buttons[0].pressed) seenA = true; // BTN A
+    if (buttons[1].pressed) seenB = true; // BTN B
+    if (buttons[2].pressed) seenC = true; // BTN C
+
+    if ((uint32_t)(msTicks - testStartTime) >= testCases[currentTest].durationMs) {
+        endTest();
+    }
+}
+
+
 // -------------------- Main --------------------
 
 int main(void) {
@@ -422,6 +484,14 @@ int main(void) {
 
     while (1) {
         serviceStatusLeds();  // update RUN/IDLE outside ISR
+            // START TEST button = BTN D (index 3)
+    
+        if (!testActive && buttons[3].pressed) {
+            startTest(currentTest);
+        }
+
+        monitorInputs();
+
         __WFI();
         }
 
