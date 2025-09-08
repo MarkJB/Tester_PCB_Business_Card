@@ -578,14 +578,130 @@ static TestCaseState tc4_eval(void) {
     return TC_PASS;
 }
 
+// ===== TC5: Unlock Pattern – State Transition / Timeout + Recovery =====
+
+// Sequence constants: A=0, B=1, C=2
+static const uint8_t correctSeq[5] = { 0, 1, 2, 1, 0 };
+#define MAX_INPUTS         5
+#define MAX_ATTEMPTS       3
+#define RECOVERY_WINDOW_MS 5000
+
+// State variables
+static uint8_t inputSeq[MAX_INPUTS];
+static uint8_t inputCount;
+static uint8_t attempts;
+static bool inRecovery;
+static uint32_t recoveryStart;
+static bool lastWasC;
+static TestCaseState tc5Outcome;
+
+static void tc5_init(void) {
+    inputCount    = 0;
+    attempts      = 0;
+    inRecovery    = false;
+    recoveryStart = 0;
+    lastWasC      = false;
+    tc5Outcome    = TC_IN_PROGRESS;
+
+    // Show alternating LEDs for "in progress"
+    tcResults[currentTest] = TC_IN_PROGRESS;
+    setTestCaseResult(tcResults);
+}
+
+static void tc5_update(void) {
+    // Handle recovery timeout
+    if (inRecovery && (msTicks - recoveryStart >= RECOVERY_WINDOW_MS)) {
+        attempts++;
+        tc5Outcome = (attempts >= MAX_ATTEMPTS) ? TC_FAIL : TC_FAIL; // both solid fail
+        inRecovery = false;
+        tcResults[currentTest] = tc5Outcome;
+        setTestCaseResult(tcResults);
+        return;
+    }
+
+    // Check for button presses
+    for (uint8_t i = 0; i < 3; i++) {
+        if (buttons[i].justPressed) {
+            buttons[i].justPressed = false;
+
+            if (inRecovery) {
+                // Recovery mode: look for C -> C
+                if (i == 2) { // C
+                    if (lastWasC) {
+                        // Recovery success: reset sequence
+                        inRecovery    = false;
+                        inputCount    = 0;
+                        lastWasC      = false;
+                        tc5Outcome    = TC_IN_PROGRESS;
+                        tcResults[currentTest] = TC_IN_PROGRESS;
+                        setTestCaseResult(tcResults);
+                        return;
+                    } else {
+                        lastWasC = true;
+                    }
+                } else {
+                    lastWasC = false;
+                }
+                return;
+            }
+
+            // Normal mode
+            if (inputCount < MAX_INPUTS) {
+                inputSeq[inputCount++] = i;
+
+                if (inputCount == MAX_INPUTS) {
+                    // Sequence complete — check correctness
+                    bool correct = true;
+                    for (uint8_t j = 0; j < MAX_INPUTS; j++) {
+                        if (inputSeq[j] != correctSeq[j]) {
+                            correct = false;
+                            break;
+                        }
+                    }
+                    if (correct) {
+                        tc5Outcome = TC_PASS;
+                        tcResults[currentTest] = TC_PASS;
+                        setTestCaseResult(tcResults);
+                    } else {
+                        attempts++;
+                        if (attempts >= MAX_ATTEMPTS) {
+                            tc5Outcome = TC_FAIL;
+                            tcResults[currentTest] = TC_FAIL;
+                            setTestCaseResult(tcResults);
+                        } else {
+                            // Enter recovery mode
+                            inRecovery    = true;
+                            recoveryStart = msTicks;
+                            lastWasC      = false;
+                            tc5Outcome    = TC_RETRY; // fast blink for active recovery
+                            tcResults[currentTest] = TC_RETRY;
+                            setTestCaseResult(tcResults);
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+static TestCaseState tc5_eval(void) {
+    // If still in progress when time expires, treat as fail
+    if (tc5Outcome == TC_IN_PROGRESS) {
+        return TC_FAIL;
+    }
+    return tc5Outcome;
+}
+
+
 // ===== Test case framework =====
 
 
 static const TestCaseDef testCases[] = {
-    { 5000, tc1_init, tc1_update, tc1_eval },
-    { 5000, tc2_init, tc2_update, tc2_eval },
-    { 5000, tc3_init, tc3_update, tc3_eval },
-    { 5000, tc4_init, tc4_update, tc4_eval },
+    // { 5000, tc1_init, tc1_update, tc1_eval },
+    // { 5000, tc2_init, tc2_update, tc2_eval },
+    // { 5000, tc3_init, tc3_update, tc3_eval },
+    // { 5000, tc4_init, tc4_update, tc4_eval },
+    { 10000, tc5_init, tc5_update, tc5_eval }
 };
 
 static const size_t NUM_TEST_CASES = sizeof(testCases) / sizeof(testCases[0]);
