@@ -5056,7 +5056,7 @@
 				(justify left)
 			)
 		)
-		(property "Value" "IDLE"
+		(property "Value" "RC_G"
 			(at 96.012 138.0546 90)
 			(effects
 				(font
