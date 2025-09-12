@@ -9,6 +9,7 @@
 #include <stdint.h>
 #include <stdbool.h>
 
+static bool testCaseShouldEndEarly = false;
 TestCaseState tcResults[5] = { TC_NO_RESULT };
 uint8_t currentTest = 0;
 bool testActive = false;
@@ -233,10 +234,14 @@ static void tc5_update(void) {
 
                     if (correct) {
                         tc5Outcome = TC_PASS;
+                        testCaseShouldEndEarly = true;
+                        return;
                     } else {
                         attempts++;
                         if (attempts >= MAX_ATTEMPTS) {
                             tc5Outcome = TC_FAIL;
+                            testCaseShouldEndEarly = true;
+                            return;
                         } else {
                             inRecovery    = true;
                             recoveryStart = msTicks;
@@ -282,7 +287,7 @@ static const TestCaseDef testCases[] = {
 	{ 5000,  tc2_init, tc2_update, tc2_eval },
 	{ 5000,  tc3_init, tc3_update, tc3_eval },
 	{ 5000,  tc4_init, tc4_update, tc4_eval },
-	{ 10000, tc5_init, tc5_update, tc5_eval }
+	{ 30000, tc5_init, tc5_update, tc5_eval }
 };
 static const size_t NUM_TEST_CASES = sizeof(testCases) / sizeof(testCases[0]);
 
@@ -294,6 +299,7 @@ void test_cases_start(uint8_t idx) {
 			tcResults[i] = TC_NO_RESULT;
 		}
 	}
+    testCaseShouldEndEarly = false;
 	testStartTime = msTicks;
 	testActive = true;
 	runStatus(true);
@@ -312,11 +318,14 @@ void test_cases_end(void) {
 }
 
 void test_cases_monitor_inputs(void) {
-	if (!testActive) return;
-	testCases[currentTest].updateFn();
-	if ((uint32_t)(msTicks - testStartTime) >= testCases[currentTest].durationMs) {
-		test_cases_end();
-	}
+    if (!testActive) return;
+
+    testCases[currentTest].updateFn();
+
+    if (testCaseShouldEndEarly ||
+        (uint32_t)(msTicks - testStartTime) >= testCases[currentTest].durationMs) {
+        test_cases_end();
+    }
 }
 
 void test_cases_init(void) {}
