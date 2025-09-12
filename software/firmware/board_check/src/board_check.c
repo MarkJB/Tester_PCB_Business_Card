@@ -31,7 +31,8 @@
 
 const uint8_t statusLEDs[] = { PIN_INIT, PIN_RDY, PIN_RUN, PIN_IDLE };
 const uint8_t cols[] = { PIN_COL_A, PIN_COL_B, PIN_COL_C, PIN_COL_D, PIN_COL_E };
-
+const uint8_t inputPins[] = { PIN_INPUT_A, PIN_INPUT_B, PIN_INPUT_C, PIN_INPUT_D };
+const uint8_t inputCols[] = { PIN_COL_A, PIN_COL_B, PIN_COL_C, PIN_COL_D }; // TC1–TC4
 typedef enum {
     MODE_DEMO,
     MODE_INPUT
@@ -62,10 +63,13 @@ void setupPins() {
     funPinMode(PIN_ROW_G, GPIO_Speed_10MHz | GPIO_CNF_OUT_PP);
     funDigitalWrite(PIN_ROW_R, FUN_HIGH); // Start rows OFF
     funDigitalWrite(PIN_ROW_G, FUN_HIGH);
+
+    for (int i = 0; i < 4; i++) {
+    funPinMode(inputPins[i], GPIO_CNF_IN_PUPD);
+    funDigitalWrite(inputPins[i], FUN_HIGH); // enable pull‑up
 }
 
-const uint8_t inputPins[] = { PIN_INPUT_A, PIN_INPUT_B, PIN_INPUT_C, PIN_INPUT_D };
-const uint8_t inputCols[] = { PIN_COL_A, PIN_COL_B, PIN_COL_C, PIN_COL_D }; // TC1–TC4
+}
 
 bool isAnyButtonPressed() {
     for (int i = 0; i < 4; i++) {

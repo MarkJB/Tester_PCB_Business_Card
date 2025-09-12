@@ -3,6 +3,7 @@
 
 // you can put various configurations in here, you can see a full list in ch32fun.h
 // part selection is made in the Makefile
+#define FUNCONF_ENABLE_HPE 0
 
 #endif
 
