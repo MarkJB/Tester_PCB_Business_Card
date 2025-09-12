@@ -158,6 +158,7 @@ static const uint8_t correctSeq[5] = { 0, 1, 2, 1, 0 };
 #define MAX_INPUTS         5
 #define MAX_ATTEMPTS       3
 #define RECOVERY_WINDOW_MS 5000
+
 static uint8_t inputSeq[MAX_INPUTS];
 static uint8_t inputCount;
 static uint8_t attempts;
@@ -167,88 +168,106 @@ static bool lastWasC;
 static TestCaseState tc5Outcome;
 
 static void tc5_init(void) {
-	inputCount    = 0;
-	attempts      = 0;
-	inRecovery    = false;
-	recoveryStart = 0;
-	lastWasC      = false;
-	tc5Outcome    = TC_IN_PROGRESS;
-	tcResults[currentTest] = TC_IN_PROGRESS;
-	setTestCaseResult(tcResults);
+    inputCount    = 0;
+    attempts      = 0;
+    inRecovery    = false;
+    recoveryStart = 0;
+    lastWasC      = false;
+    tc5Outcome    = TC_IN_PROGRESS;
+
+    tcResults[currentTest] = TC_IN_PROGRESS;
+    setTestCaseResult(tcResults);
 }
 
 static void tc5_update(void) {
-	if (inRecovery && (msTicks - recoveryStart >= RECOVERY_WINDOW_MS)) {
-		attempts++;
-		tc5Outcome = (attempts >= MAX_ATTEMPTS) ? TC_FAIL : TC_FAIL;
-		inRecovery = false;
-		tcResults[currentTest] = tc5Outcome;
-		setTestCaseResult(tcResults);
-		return;
-	}
-	for (uint8_t i = 0; i < 3; i++) {
-		if (buttons[i].justPressed) {
-			buttons[i].justPressed = false;
-			if (inRecovery) {
-				if (i == 2) {
-					if (lastWasC) {
-						inRecovery    = false;
-						inputCount    = 0;
-						lastWasC      = false;
-						tc5Outcome    = TC_IN_PROGRESS;
-						tcResults[currentTest] = TC_IN_PROGRESS;
-						setTestCaseResult(tcResults);
-						return;
-					} else {
-						lastWasC = true;
-					}
-				} else {
-					lastWasC = false;
-				}
-				return;
-			}
-			if (inputCount < MAX_INPUTS) {
-				inputSeq[inputCount++] = i;
-				if (inputCount == MAX_INPUTS) {
-					bool correct = true;
-					for (uint8_t j = 0; j < MAX_INPUTS; j++) {
-						if (inputSeq[j] != correctSeq[j]) {
-							correct = false;
-							break;
-						}
-					}
-					if (correct) {
-						tc5Outcome = TC_PASS;
-						tcResults[currentTest] = TC_PASS;
-						setTestCaseResult(tcResults);
-					} else {
-						attempts++;
-						if (attempts >= MAX_ATTEMPTS) {
-							tc5Outcome = TC_FAIL;
-							tcResults[currentTest] = TC_FAIL;
-							setTestCaseResult(tcResults);
-						} else {
-							inRecovery    = true;
-							recoveryStart = msTicks;
-							lastWasC      = false;
-							tc5Outcome    = TC_RETRY;
-							tcResults[currentTest] = TC_RETRY;
-							setTestCaseResult(tcResults);
-						}
-					}
-				}
-			}
-		}
-	}
+    // Handle recovery timeout
+    if (inRecovery && (msTicks - recoveryStart >= RECOVERY_WINDOW_MS)) {
+        attempts++;
+        inRecovery = false;
+        lastWasC = false;
+
+        // Set internal outcome only; defer LED signaling to tc5_eval
+        tc5Outcome = TC_FAIL;
+        return;
+    }
+
+    // Handle button presses
+    for (uint8_t i = 0; i < 3; i++) {
+        if (buttons[i].justPressed) {
+            buttons[i].justPressed = false;
+
+            // Recovery mode logic
+            if (inRecovery) {
+                if (i == 2) { // Button C
+                    if (lastWasC) {
+                        // Successful recovery: reset state and retry
+                        inRecovery    = false;
+                        inputCount    = 0;
+                        lastWasC      = false;
+                        tc5Outcome    = TC_IN_PROGRESS;
+
+                        tcResults[currentTest] = TC_IN_PROGRESS;
+                        setTestCaseResult(tcResults);
+                        return;
+                    } else {
+                        lastWasC = true;
+                    }
+                } else {
+                    lastWasC = false;
+                }
+                return;
+            }
+
+            // Normal input sequence
+            if (inputCount < MAX_INPUTS) {
+                inputSeq[inputCount++] = i;
+
+                if (inputCount == MAX_INPUTS) {
+                    bool correct = true;
+                    for (uint8_t j = 0; j < MAX_INPUTS; j++) {
+                        if (inputSeq[j] != correctSeq[j]) {
+                            correct = false;
+                            break;
+                        }
+                    }
+
+                    if (correct) {
+                        tc5Outcome = TC_PASS;
+                    } else {
+                        attempts++;
+                        if (attempts >= MAX_ATTEMPTS) {
+                            tc5Outcome = TC_FAIL;
+                        } else {
+                            inRecovery    = true;
+                            recoveryStart = msTicks;
+                            lastWasC      = false;
+                            tc5Outcome    = TC_RETRY;
+
+                            tcResults[currentTest] = TC_RETRY;
+                            setTestCaseResult(tcResults);
+                        }
+                    }
+                }
+            }
+        }
+    }
 }
 
 static TestCaseState tc5_eval(void) {
-	if (tc5Outcome == TC_IN_PROGRESS) {
-		return TC_FAIL;
-	}
-	return tc5Outcome;
+    // Final outcome only resolved here
+    if (tc5Outcome == TC_PASS || tc5Outcome == TC_FAIL) {
+        tcResults[currentTest] = tc5Outcome;
+        setTestCaseResult(tcResults);
+        return tc5Outcome;
+    }
+
+    // If still in progress or retry, treat as failure on timeout
+    tcResults[currentTest] = TC_FAIL;
+    setTestCaseResult(tcResults);
+    return TC_FAIL;
 }
 
+// ===== Test Case Framework =====
 typedef struct {
 	uint32_t durationMs;
 	void (*initFn)(void);
@@ -256,14 +275,18 @@ typedef struct {
 	TestCaseState (*evalFn)(void);
 } TestCaseDef;
 
+// ===== Test Case List =====
+
 static const TestCaseDef testCases[] = {
 	{ 5000,  tc1_init, tc1_update, tc1_eval },
 	{ 5000,  tc2_init, tc2_update, tc2_eval },
 	{ 5000,  tc3_init, tc3_update, tc3_eval },
 	{ 5000,  tc4_init, tc4_update, tc4_eval },
-	// { 10000, tc5_init, tc5_update, tc5_eval }
+	{ 10000, tc5_init, tc5_update, tc5_eval }
 };
 static const size_t NUM_TEST_CASES = sizeof(testCases) / sizeof(testCases[0]);
+
+// ===== Test Case Runner =====
 
 void test_cases_start(uint8_t idx) {
 	if (idx == 0) {
