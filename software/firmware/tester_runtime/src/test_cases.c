@@ -300,7 +300,7 @@ static const TestCaseDef testCases[] = {
 	{ 5000,  tc4_init, tc4_update, tc4_eval },
 	{ 30000, tc5_init, tc5_update, tc5_eval }
 };
-static const size_t NUM_TEST_CASES = sizeof(testCases) / sizeof(testCases[0]);
+const size_t NUM_TEST_CASES = sizeof(testCases) / sizeof(testCases[0]);
 
 // ===== Test Case Runner =====
 

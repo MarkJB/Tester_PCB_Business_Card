@@ -1,3 +1,7 @@
+#include "utils.h"
+// Prototypes for functions used but not declared
+bool allTestsPassed(void);
+void triggerPOVEasterEgg(void);
 #include "ch32fun.h"
 #include <stdbool.h>
 #include "globals.h"
@@ -44,7 +48,9 @@ static void startupSequence(void) {
         serviceStatusLeds();
         if (!testActive && buttons[3].pressed) {
             test_cases_start(currentTest);
-        }
+    } else if (allTestsPassed() && buttons[1].pressed && buttons[2].pressed) {
+            triggerPOVEasterEgg();
+        }        
         test_cases_monitor_inputs();
         __WFI();
     }

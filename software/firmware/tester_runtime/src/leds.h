@@ -12,6 +12,7 @@ extern volatile const TestCaseState* activeStates;
 #include "test_cases.h"
 
 void serviceStatusLeds(void);
+void turnOffAllStatusLeds(void);
 void setTestCaseResult(const TestCaseState states[5]);
 void initTestCaseStates(void);
 void testCaseLEDStartupPattern(void);

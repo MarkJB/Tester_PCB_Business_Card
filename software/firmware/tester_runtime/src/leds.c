@@ -45,6 +45,14 @@ void serviceStatusLeds(void) {
     }
 }
 
+void turnOffAllStatusLeds(void) {
+    funDigitalWrite(PIN_PWR, FUN_HIGH);
+    funDigitalWrite(PIN_INIT, FUN_HIGH);
+    funDigitalWrite(PIN_RDY, FUN_HIGH);
+    funDigitalWrite(PIN_RUN, FUN_HIGH);
+    funDigitalWrite(PIN_IDLE, FUN_HIGH);    
+}
+
 void testCaseLEDStartupPattern(void) {
     static TestCaseState demoStates[5];
     for (int k = 0; k < 4; k++) {
