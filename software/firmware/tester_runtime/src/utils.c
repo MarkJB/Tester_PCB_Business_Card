@@ -1,5 +1,6 @@
 #include <string.h> // For strlen
 #include "ch32fun.h"
+#include "pins.h"
 #include "utils.h"
 #include "test_cases.h"
 #include "leds.h"
@@ -48,7 +49,6 @@ static const uint8_t pov_font_space[1] = {
 static const char* povMessage = "BUG";
 
 void displayPOVChar(char c) {
-    TestCaseState povStates[5];
     const uint8_t* pattern = NULL;
     int numCols = 0;
     // Select pattern and number of columns for each character
@@ -74,30 +74,40 @@ void displayPOVChar(char c) {
             numCols = 1;
             break;
     }
-    // Display each column of the character
+    // Display each column of the character using status LEDs (active low)
     for (int col = 0; col < numCols; col++) {
-        for (int i = 0; i < 5; i++) povStates[i] = TC_NO_RESULT;
-        if (pattern && (pattern[col] & 0x1F)) { // 5 bits for 5 LEDs
-            for (int row = 0; row < 5; row++) {
-                if (pattern[col] & (1 << row)) {
-                    povStates[row] = TC_PASS;
-                }
-            }
+        // Set all status LEDs OFF (inactive/high)
+        funDigitalWrite(PIN_PWR, 1);
+        funDigitalWrite(PIN_INIT, 1);
+        funDigitalWrite(PIN_RDY, 1);
+        funDigitalWrite(PIN_RUN, 1);
+        funDigitalWrite(PIN_IDLE, 1);
+
+        if (pattern && (pattern[col] & 0x1F)) {
+            if (pattern[col] & (1 << 0)) funDigitalWrite(PIN_PWR, 0);   // ON (active low)
+            if (pattern[col] & (1 << 1)) funDigitalWrite(PIN_INIT, 0);
+            if (pattern[col] & (1 << 2)) funDigitalWrite(PIN_RDY, 0);
+            if (pattern[col] & (1 << 3)) funDigitalWrite(PIN_RUN, 0);
+            if (pattern[col] & (1 << 4)) funDigitalWrite(PIN_IDLE, 0);
         }
-        setTestCaseResult(povStates);
-        Delay_Ms(10); // Adjust timing for PoV effect
+        Delay_Ms(2); // Adjust timing for PoV effect
     }
     // Always add a 1-column gap after each character (except if already a gap)
     if (numCols == 4) {
-        for (int i = 0; i < 5; i++) povStates[i] = TC_NO_RESULT;
-        setTestCaseResult(povStates);
-        Delay_Ms(5);
+        funDigitalWrite(PIN_PWR, 1);
+        funDigitalWrite(PIN_INIT, 1);
+        funDigitalWrite(PIN_RDY, 1);
+        funDigitalWrite(PIN_RUN, 1);
+        funDigitalWrite(PIN_IDLE, 1);
+        Delay_Ms(2);
     }
 }
 
 void triggerPOVEasterEgg(void) {
     // turn off all other LEDs including PWR, INIT, RDY
     turnOffAllStatusLeds();
+    // turn off test case LEDs
+    setTestCaseResult((TestCaseState[5]){ TC_NO_RESULT, TC_NO_RESULT, TC_NO_RESULT, TC_NO_RESULT, TC_NO_RESULT });
 
     while (1) {
         for (size_t i = 0; i < strlen(povMessage); i++) {
