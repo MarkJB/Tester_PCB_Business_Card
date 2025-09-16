@@ -76,31 +76,21 @@ void displayPOVChar(char c) {
     }
     // Display each column of the character
     for (int col = 0; col < numCols; col++) {
-        // Each bit in pattern[col] corresponds to a status LED (active low)
-        // Bit 0: PIN_PWR, Bit 1: PIN_INIT, Bit 2: PIN_RDY, Bit 3: PIN_RUN, Bit 4: PIN_IDLE
-        // Set all status LEDs OFF (inactive/high)
-        GPIO_SetBits(PIN_PWR);
-        GPIO_SetBits(PIN_INIT);
-        GPIO_SetBits(PIN_RDY);
-        GPIO_SetBits(PIN_RUN);
-        GPIO_SetBits(PIN_IDLE);
-
-        if (pattern && (pattern[col] & 0x1F)) {
-            if (pattern[col] & (1 << 0)) GPIO_ResetBits(PIN_PWR);   // ON (active low)
-            if (pattern[col] & (1 << 1)) GPIO_ResetBits(PIN_INIT);
-            if (pattern[col] & (1 << 2)) GPIO_ResetBits(PIN_RDY);
-            if (pattern[col] & (1 << 3)) GPIO_ResetBits(PIN_RUN);
-            if (pattern[col] & (1 << 4)) GPIO_ResetBits(PIN_IDLE);
+        for (int i = 0; i < 5; i++) povStates[i] = TC_NO_RESULT;
+        if (pattern && (pattern[col] & 0x1F)) { // 5 bits for 5 LEDs
+            for (int row = 0; row < 5; row++) {
+                if (pattern[col] & (1 << row)) {
+                    povStates[row] = TC_PASS;
+                }
+            }
         }
+        setTestCaseResult(povStates);
         Delay_Ms(10); // Adjust timing for PoV effect
     }
     // Always add a 1-column gap after each character (except if already a gap)
     if (numCols == 4) {
-        GPIO_SetBits(PIN_PWR);
-        GPIO_SetBits(PIN_INIT);
-        GPIO_SetBits(PIN_RDY);
-        GPIO_SetBits(PIN_RUN);
-        GPIO_SetBits(PIN_IDLE);
+        for (int i = 0; i < 5; i++) povStates[i] = TC_NO_RESULT;
+        setTestCaseResult(povStates);
         Delay_Ms(5);
     }
 }
