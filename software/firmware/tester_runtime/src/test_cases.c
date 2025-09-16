@@ -24,9 +24,19 @@ static void tc1_init(void) {
 }
 
 static void tc1_update(void) {
-	if (buttons[0].pressed) seenA = true;
-	if (buttons[1].pressed) seenB = true;
-	if (buttons[2].pressed) seenC = true;
+	if (buttons[0].pressed) {
+        seenA = true;
+        buttons[0].justPressed = false;
+    }
+    
+	if (buttons[1].pressed) {
+        seenB = true;
+        buttons[1].justPressed = false;
+    }
+	if (buttons[2].pressed) { 
+        seenC = true; 
+        buttons[2].justPressed = false;
+    }
 }
 
 static TestCaseState tc1_eval(void) {
@@ -70,38 +80,38 @@ static TestCaseState tc2_eval(void) {
 // ===== TC3: Conditional Logic – Decision Table Test =====
 
 // Latch states for A, B, C during the 5s window
-static bool seenA3, seenB3, seenC3;
+// static bool seenA3, seenB3, seenC3;
 
 static void tc3_init(void) {
-	seenA3 = seenB3 = seenC3 = false;
+	seenA = seenB = seenC = false;
 }
 
 static void tc3_update(void) {
 	if (buttons[0].justPressed) { 
 		buttons[0].justPressed = false; 
-		seenA3 = !seenA3; // toggle
+		seenA = !seenA; // toggle
 	}
 	if (buttons[1].justPressed) { 
 		buttons[1].justPressed = false; 
-		seenB3 = !seenB3; // toggle
+		seenB = !seenB; // toggle
 	}
 	if (buttons[2].justPressed) { 
 		buttons[2].justPressed = false; 
-		seenC3 = !seenC3; // toggle
+		seenC = !seenC; // toggle
 	}
 }
 
 // Decision table returning your existing TestCaseState
 static TestCaseState tc3_eval(void) {
 	// Decision table mapping
-	if (!seenA3 && !seenB3 && !seenC3) return TC_FAIL;   // 000
-	if (!seenA3 && !seenB3 &&  seenC3) return TC_WARNING;  // 001
-	if (!seenA3 &&  seenB3 && !seenC3) return TC_WARNING;  // 010
-	if (!seenA3 &&  seenB3 &&  seenC3) return TC_PASS;   // 011 ✅
-	if ( seenA3 && !seenB3 && !seenC3) return TC_FAIL;   // 100
-	if ( seenA3 && !seenB3 &&  seenC3) return TC_WARNING;  // 101
-	if ( seenA3 &&  seenB3 && !seenC3) return TC_WARNING;  // 110
-	if ( seenA3 &&  seenB3 &&  seenC3) return TC_WARNING;  // 111
+	if (!seenA && !seenB && !seenC) return TC_FAIL;   // 000
+	if (!seenA && !seenB &&  seenC) return TC_WARNING;  // 001
+	if (!seenA &&  seenB && !seenC) return TC_WARNING;  // 010
+	if (!seenA &&  seenB &&  seenC) return TC_PASS;   // 011 ✅
+	if ( seenA && !seenB && !seenC) return TC_FAIL;   // 100
+	if ( seenA && !seenB &&  seenC) return TC_WARNING;  // 101
+	if ( seenA &&  seenB && !seenC) return TC_WARNING;  // 110
+	if ( seenA &&  seenB &&  seenC) return TC_WARNING;  // 111
 	return TC_FAIL;
 }
 
@@ -175,7 +185,8 @@ static void tc5_init(void) {
     recoveryStart = 0;
     lastWasC      = false;
     tc5Outcome    = TC_IN_PROGRESS;
-
+    seenA = seenB = seenC = false;
+    
     tcResults[currentTest] = TC_IN_PROGRESS;
     setTestCaseResult(tcResults);
 }
