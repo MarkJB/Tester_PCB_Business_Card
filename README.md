@@ -8,7 +8,13 @@ I've always liked the PCB business cards I've seen people design. They often hav
 
 I wanted to give it a go but couldn't think of anything compelling that was related to my primary industry (QA, Software Testing & Test Automation). Then I saw a recent [pong example on Hackaday](https://hackaday.com/2025/08/13/pcb-business-card-plays-pong-attracts-employer/) which made me wonder whether the author had done much testing, and that sparked the idea of creating a PCB business card all about testing.
 
-There are 5 test cases, each one designed to be a little bit harder than the previous one and to focus on a different class of test. The hardware is somewhat limited, so how well each of the tests achieves its intended goal is open for debate and I welcome feedback from actual testers!
+There are 5 'test cases'\*, each one designed to be a little bit harder than the previous one and to focus on a different class of test. The hardware is somewhat limited, so how well each of the tests achieves its intended goal or how true it is to its test type is open for debate and I welcome feedback from actual testers!
+
+The idea is that a tester should be able to look at the test case description, its test type and, given the available inputs and output, figure out how to get the tests to pass, treating it as a sort of black-box exploratory test session. Think of it as a fidget toy for tester.
+
+That all said, I've not yet had any feedback from any testers so I don't know if its too easy or too hard. If you want to cheat, dig into this repo and you'll find the test case BDD scenarios and solutions (which I have deliberately not linked from any of the main READMEs), or as an alternative you can read the code (either the main firmware or the simulator should provide a white-box experience).
+
+\* I use the term "test cases" to refer to the tests that the hardware is presenting to the end user to 'execute', but in some places I have also created actual tests for the code as well (like the Playwright tests for the simulator).
 
 > Note: There may be minor differences between the simulator and the actual hardware due to implementation details or I changed direction while working on the firmware and haven't gotten round to updating the simulator.
 

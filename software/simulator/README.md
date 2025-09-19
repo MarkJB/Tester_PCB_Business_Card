@@ -4,9 +4,7 @@ An interactive browser based simulator for the Tester PCB Business Card — desi
 
 Designed in collaboration with Co-pilot - I don't think I'd have been able to spin this up as quickly or get as far as I have in a short space of time without it.
 
-The code isn't perfect - the architecture leaves a lot to be desired but its ok for a quick tool that I can play with while I wait for the hardware to be made and shipped (I still have to assemble it as well).
-
-As of [468de84](https://github.com/MarkJB/Tester_PCB_Business_Card/commit/468de848f006198b3b1d71a0aeb5f23d9f56195a) the first 4 tests have been implemented. Along the way I've done a fair bit more work on this than originally intended. There is now a proto test runner with setup and teardown. This was done off the back of discovering that test case 5 is quite difficult to implement because I want to provide an intermediate state for the test result. More on that when I commit the fully working version.
+The code went through a number of iterations and ended up informing a lot of decisions that carried over to the real firmware. For instance, I ended up creating a simple test runner with setup and teardown as well as abstracting the hardware. I ended up feeding the test cases along with the BDD scenarios into CoPilot to help generate the test cases for the firmware.
 
 I've also spent some time creating Playwright tests and adding a workflow to build, test and deploy the simulator to github pages. You can test out [the simulator here](https://markjb.github.io/Tester_PCB_Business_Card/)
 
