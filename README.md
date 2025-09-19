@@ -2,6 +2,8 @@
 
 A PCB Business Card designed by a tester, for tester (QA Engineers)
 
+![Kicad 9 PCB Render](./resources/tester_pcb_business_card.png)
+
 I've always liked the PCB business cards I've seen people design. They often have an interesting story about the why and the how, and sometimes even lead to a job offer as a result!
 
 > Note: For any recruiters or prospective employers who end up here, I'm a software tester specializing in WebUI test automation. Electronics and hardware is a hobby (and occasionally a freelance gig in the Creative Technologist/Arts and Technology space)
@@ -20,9 +22,11 @@ That all said, I've not yet had any feedback from any testers so I don't know if
 
 So here is Rev A:
 
-![Tester PCB Preview](./resources/tester_pcb_business_card.png)
+![Tester PCB Preview](./resources/jlcpcb_ass_top.jpg)
 
 This is based on the CH32V003F4U6. A 27¢ micro controller with a one-wire programmer that costs less than $8. I had no experience with this when I started this project, but cost was a big factor with the card. I'm aiming for sub $2 per unit so I can a) afford to get a handful made and b) give them away at conferences and networking events.
+
+> Note: I added a slot for attaching to a lanyard as I intend to give these out at networking and conference events.
 
 This repo includes:
 
@@ -35,6 +39,8 @@ The [schematic](./resources/schematic.pdf), PCB design, BoM and JLCPCB ready pro
 ## Simulator
 
 Simulator [README](./software/simulator)
+
+![Tester PCB Preview](./software/simulator/assets/tester_pcb_business_card_simulator.gif)
 
 You can play with the simulator here: [Simulator Demo](./assets/tester_pcb_business_card_simulator.gif)
 
