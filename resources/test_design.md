@@ -47,12 +47,12 @@ And the system is ready for further testing
 
 ```gherkin
 Given the system is idle and ready to receive input
-When I press button B twice with a delay greater than 100ms
+When I press button B twice with a delay greater than 30ms and less than 200ms
 Then the system registers both presses as valid input
 
 Given the system is idle and ready to receive input
-When I press button B twice with a delay less than 100ms
-Then the system ignores the second press as invalid input
+When I press button B twice with a delay less than 30ms
+Then the system ignores the second press as invalid input (debounce)
 ```
 
 ### 🧠 What’s Being Tested
@@ -60,8 +60,8 @@ Then the system ignores the second press as invalid input
 > “This test models a system that filters out rapid, repeated signals. The tester must press B twice with a precise delay to determine the system’s debounce threshold.”
 
 - **Boundary**: 100ms (tbd)
-- **Pass**: Two presses >100ms apart → both counted
-- **Fail**: Two presses <100ms apart → second ignored
+- **Pass**: Two presses >30ms apart + <200ms apart → both counted
+- **Fail**: Two presses <30ms apart → second ignored
 
 ### 🔧 Test Logic
 
@@ -81,10 +81,12 @@ Then the system ignores the second press as invalid input
 
 ```gherkin
 Given the system is idle and ready to receive input
-When the user presses any combination of buttons A, B, and C within a 5-second window
+When the user presses any combination of buttons (individually or combined) A, B, and C within a 5-second window
 Then the system stores the input state until the timeout expires
 And the system evaluates the final input state against its decision table
 ```
+
+> Note: Pressing a button will set its state and pressing it again will unset it.
 
 ### 🧠 What’s Being Tested
 
@@ -132,13 +134,15 @@ And the system evaluates each input independently against its valid range
 
 ### 📊 Example Outcomes
 
-| A   | B   | C   | Outcome Description                   |
-| --- | --- | --- | ------------------------------------- |
-| 2   | 6   | 3   | ✅ All valid → Green LEDs for A/B/C   |
-| 3   | 6   | 3   | ⚠️ A borderline → Result blinks green |
-| 0   | 2   | 0   | ❌ B invalid → B red                  |
-| 0   | 0   | 0   | ❌ No input → All LEDs red            |
-| 1   | 0   | 0   | ✅ A valid → A green, others ignored  |
+| A      | B       | C      | Outcome Description                                                                                                                                  |
+| ------ | ------- | ------ | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 6      | 8-11    | 3      | ✅ All valid → pass                                                                                                                                  |
+| 5 or 7 | 7 or 12 | 2 or 4 | ⚠️ borderline → warning (red flashing - I originally intended to use bicolour LEDs which could produce Green/Red/Orange but they were too expensive) |
+| 0      | 2       | 0      | ❌ B invalid → fail                                                                                                                                  |
+| 0      | 0       | 0      | ❌ No input → fail                                                                                                                                   |
+| 7      | 0       | 0      | ✅ A valid → pass, others ignored                                                                                                                    |
+| 0      | 8       | 0      | ✅ B valid → pass, others ignored                                                                                                                    |
+| 0      | 0       | 3      | ✅ C valid → pass, others ignored                                                                                                                    |
 
 ---
 

@@ -1,7 +1,7 @@
-This firmware lights up the LEDs one at a time (except for the PWR led which should be one all the time even though it is software controlled) so we can check the LEDs are functioning correctly.
+Compile and upload with PlatformIO (this should automatically fetch the ch32fun framework) using a WCH-LinkE programmer.
 
-It should also be extended to check the buttons work as expected.
+Firmware based on design spec, BDD scenarios and simulator (test case) code.
 
-I wasn't able to upload with the PIO upload button, but I was able to run program the board after downloading the (openwch/openocd_wch repo)[https://github.com/openwch/openocd_wch]. This repo provides a customised version of the openocd.exe util that works with the WHC-Link-E programmer and running the following command:
+If you have problems uploading via VSCode, try downloading the (openwch/openocd_wch repo)[https://github.com/openwch/openocd_wch]. This repo provides a customized version of the openocd.exe util that works with the WHC-Link-E programmer and running the following command:
 
 openocd_wch\bin\openocd.exe -f openocd_wch\bin\wch-riscv.cfg -c "program path\to\firmware.elf verify reset exit"
