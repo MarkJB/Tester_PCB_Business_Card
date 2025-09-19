@@ -72,3 +72,78 @@ void testCaseLEDStartupPattern(void) {
     for (int j = 0; j < 5; j++) demoStates[j] = TC_NO_RESULT;
     setTestCaseResult(demoStates);
 }
+
+// Demo Mode: This should show activity on the status LEDs
+// and cycle through test case LEDs in a pattern designed
+// to catch the eye. Doesn't reflect any real test results.
+void demoMode(void) {
+    // Show sweeping pattern on status LEDs, repeat 5 times
+    for (int i = 0; i < 10; i++) {
+        for (int i = 0; i < 5; i++) {
+            funDigitalWrite(PIN_PWR,   (i == 0) ? FUN_LOW : FUN_HIGH);
+            funDigitalWrite(PIN_INIT,  (i == 1) ? FUN_LOW : FUN_HIGH);
+            funDigitalWrite(PIN_RDY,   (i == 2) ? FUN_LOW : FUN_HIGH);
+            funDigitalWrite(PIN_RUN,   (i == 3) ? FUN_LOW : FUN_HIGH);
+            funDigitalWrite(PIN_IDLE,  (i == 4) ? FUN_LOW : FUN_HIGH);
+            waitTicks(30);
+        }
+    }
+    
+    // Demo mode on test case LEDs
+    static TestCaseState demoStates[5];
+    for (int k = 0; k < 4; k++) {
+        for (int i = 0; i < 5; i++) {
+            for (int j = 0; j < 5; j++) demoStates[j] = TC_NO_RESULT;
+            demoStates[i] = TC_PASS;
+            setTestCaseResult(demoStates);
+            waitTicks(30);
+        }
+        for (int i = 4; i >= 0; i--) {
+            for (int j = 0; j < 5; j++) demoStates[j] = TC_NO_RESULT;
+            demoStates[i] = TC_FAIL;
+            setTestCaseResult(demoStates);
+            waitTicks(30);
+        }
+    }
+    for (int j = 0; j < 5; j++) demoStates[j] = TC_NO_RESULT;
+    setTestCaseResult(demoStates);
+
+    // call testCaseLEDStartupPattern();
+    testCaseLEDStartupPattern();
+
+    // Do 5 sweeps back and forth on status LEDs sweep up then down then repeat
+    for (int i = 0; i < 5; i++) {
+        for (int i = 0; i < 5; i++) {
+            funDigitalWrite(PIN_PWR,   (i == 0) ? FUN_LOW : FUN_HIGH);
+            funDigitalWrite(PIN_INIT,  (i == 1) ? FUN_LOW : FUN_HIGH);
+            funDigitalWrite(PIN_RDY,   (i == 2) ? FUN_LOW : FUN_HIGH);
+            funDigitalWrite(PIN_RUN,   (i == 3) ? FUN_LOW : FUN_HIGH);
+            funDigitalWrite(PIN_IDLE,  (i == 4) ? FUN_LOW : FUN_HIGH);
+            waitTicks(30);
+        }
+        for (int i = 4; i >= 0; i--) {
+            funDigitalWrite(PIN_PWR,   (i == 0) ? FUN_LOW : FUN_HIGH);
+            funDigitalWrite(PIN_INIT,  (i == 1) ? FUN_LOW : FUN_HIGH);
+            funDigitalWrite(PIN_RDY,   (i == 2) ? FUN_LOW : FUN_HIGH);
+            funDigitalWrite(PIN_RUN,   (i == 3) ? FUN_LOW : FUN_HIGH);
+            funDigitalWrite(PIN_IDLE,  (i == 4) ? FUN_LOW : FUN_HIGH);
+            waitTicks(30);
+        }
+    }
+
+    testCaseLEDStartupPattern();  
+
+    // Show backwards sweeping pattern on status LEDs, repeat 5 times
+    for (int i = 0; i < 10; i++) {
+        for (int i = 4; i >= 0; i--) {
+            funDigitalWrite(PIN_PWR,   (i == 0) ? FUN_LOW : FUN_HIGH);
+            funDigitalWrite(PIN_INIT,  (i == 1) ? FUN_LOW : FUN_HIGH);
+            funDigitalWrite(PIN_RDY,   (i == 2) ? FUN_LOW : FUN_HIGH);
+            funDigitalWrite(PIN_RUN,   (i == 3) ? FUN_LOW : FUN_HIGH);
+            funDigitalWrite(PIN_IDLE,  (i == 4) ? FUN_LOW : FUN_HIGH);
+            waitTicks(30);
+        }
+    }
+
+    testCaseLEDStartupPattern();
+}

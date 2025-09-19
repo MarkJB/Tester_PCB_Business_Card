@@ -16,5 +16,6 @@ void turnOffAllStatusLeds(void);
 void setTestCaseResult(const TestCaseState states[5]);
 void initTestCaseStates(void);
 void testCaseLEDStartupPattern(void);
+void demoMode(void);
 
 #endif // LEDS_H
