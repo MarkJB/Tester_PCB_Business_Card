@@ -41,12 +41,55 @@ static const uint8_t pov_font_G[5] = {
     0b01010, // Column 3
 };
 
+// M
+static const uint8_t pov_font_M[5] = {
+    0b11111, // Column 0
+    0b00010, // Column 1
+    0b00100, // Column 2
+    0b00010, // Column 1
+    0b11111, // Column 0
+};
+
+// O is also used for 0
+static const uint8_t pov_font_O[5] = {
+    0b01110, // Column 0
+    0b10001, // Column 1
+    0b10001, // Column 2
+    0b01110, // Column 3
+};
+
+// T
+static const uint8_t pov_font_T[5] = {
+    
+    0b00001, // Column 1
+    0b00001, // Column 2
+    0b11111, // Column 3
+    0b00001, // Column 4
+    0b00001, // Column 5
+};
+
+// 2
+static const uint8_t pov_font_2[5] = {
+    0b11010, // Column 0
+    0b11001, // Column 1
+    0b11101, // Column 2
+    0b10110, // Column 3
+};
+
+// 5
+static const uint8_t pov_font_5[5] = {
+    0b10111, // Column 0
+    0b10101, // Column 1
+    0b10101, // Column 2
+    0b01001, // Column 3
+};
+
 // Space is a special case 
 static const uint8_t pov_font_space[1] = {
     0b00000, // Column 0
 };
 
-static const char* povMessage = "BUG";
+static const char* povMessage = "MOT 2025 ";
 
 void displayPOVChar(char c) {
     const uint8_t* pattern = NULL;
@@ -65,6 +108,30 @@ void displayPOVChar(char c) {
             pattern = pov_font_G;
             numCols = 4;
             break;
+        case 'M':
+            pattern = pov_font_M;
+            numCols = 5;
+            break;
+        case 'O':
+            pattern = pov_font_O;
+            numCols = 4;
+            break;
+        case 'T':
+            pattern = pov_font_T;
+            numCols = 5;
+            break;
+        case '0':
+            pattern = pov_font_O;
+            numCols = 4;
+            break;
+        case '2':
+            pattern = pov_font_2;
+            numCols = 4;
+            break;
+        case '5':
+            pattern = pov_font_5;
+            numCols = 4;
+            break;            
         case ' ': // gap/space
             pattern = pov_font_space;
             numCols = 1;
@@ -92,15 +159,13 @@ void displayPOVChar(char c) {
         }
         Delay_Ms(2); // Adjust timing for PoV effect
     }
-    // Always add a 1-column gap after each character (except if already a gap)
-    if (numCols == 4) {
-        funDigitalWrite(PIN_PWR, 1);
-        funDigitalWrite(PIN_INIT, 1);
-        funDigitalWrite(PIN_RDY, 1);
-        funDigitalWrite(PIN_RUN, 1);
-        funDigitalWrite(PIN_IDLE, 1);
-        Delay_Ms(2);
-    }
+    // Always add a 1-column gap after each character
+    funDigitalWrite(PIN_PWR, 1);
+    funDigitalWrite(PIN_INIT, 1);
+    funDigitalWrite(PIN_RDY, 1);
+    funDigitalWrite(PIN_RUN, 1);
+    funDigitalWrite(PIN_IDLE, 1);
+    Delay_Ms(2);
 }
 
 void triggerPOVEasterEgg(void) {
@@ -112,7 +177,6 @@ void triggerPOVEasterEgg(void) {
     while (1) {
         for (size_t i = 0; i < strlen(povMessage); i++) {
                 displayPOVChar(povMessage[i]);
-                // Delay_Ms(20); // Adjust timing for motion blur
             }
     }
     
