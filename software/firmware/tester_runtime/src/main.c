@@ -1,3 +1,7 @@
+#include "utils.h"
+// Prototypes for functions used but not declared
+bool allTestsPassed(void);
+void triggerPOVEasterEgg(void);
 #include "ch32fun.h"
 #include <stdbool.h>
 #include "globals.h"
@@ -41,10 +45,17 @@ static void startupSequence(void) {
     startupSequence();
     waitTicks(100);
     while (1) {
-        serviceStatusLeds();
+        serviceStatusLeds();  ///Update status LEDs
+        // Check for button combos to start tests, demo mode, or PoV easter egg
         if (!testActive && buttons[3].pressed) {
             test_cases_start(currentTest);
-        }
+        } else if (!testActive && buttons[0].pressed && buttons[2].pressed) {
+            while(1)  {
+                demoMode();
+            }
+        } else if (allTestsPassed() && buttons[1].pressed && buttons[2].pressed) {
+            triggerPOVEasterEgg();
+        }        
         test_cases_monitor_inputs();
         __WFI();
     }

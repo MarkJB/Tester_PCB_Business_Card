@@ -1,6 +1,7 @@
 #ifndef TEST_CASES_H
 #define TEST_CASES_H
 
+#include <stddef.h>
 #include <stdint.h>
 #include <stdbool.h>
 
@@ -24,5 +25,7 @@ void test_cases_monitor_inputs(void);
 extern TestCaseState tcResults[5];
 extern uint8_t currentTest;
 extern bool testActive;
+
+extern const size_t NUM_TEST_CASES;
 
 #endif // TEST_CASES_H
