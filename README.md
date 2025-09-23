@@ -1,6 +1,6 @@
 # Tester PCB Business Card
 
-A PCB Business Card designed by a tester, for tester (QA Engineers)
+A PCB Business Card designed by a tester, for testers (QA Engineers)
 
 ![Kicad 9 PCB Render](./resources/tester_pcb_business_card.png)
 
