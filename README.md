@@ -63,4 +63,6 @@ Copyright Mark Benson 2025
 The hardware is licensed under the CERN-OHL-S v2 license.
 The software is licensed under the MIT license.
 
-Usual disclaimer - No warranty implied or given for any use or outcome of any of the available materials, etc.
+Usual disclaimer - No warranty implied or given for any use or outcome of any of the available materials, etc. 
+
+This isn't a toy, it's not suitable for children. As it's not in a case, there is a risk of short circuiting the components and battery, resulting in damage or overheating, so do not put it in your pocket or bag or anywhere where metal objects could cause short circuit. Use at your own risk.
