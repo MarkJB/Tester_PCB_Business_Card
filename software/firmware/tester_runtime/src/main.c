@@ -49,8 +49,10 @@ static void startupSequence(void) {
         // Check for button combos to start tests, demo mode, or PoV easter egg
         if (!testActive && buttons[3].pressed) {
             test_cases_start(currentTest);
-        } else if (!testActive && buttons[0].pressed && buttons[2].pressed) {
-            while(1)  {
+        } else if (!testActive && currentTest == 0 && buttons[0].pressed && buttons[2].pressed) {
+            // Only allow demo mode when no test is selected/run (currentTest == 0)
+            // This prevents entering an un-exitable demo mode when the device is idle with no tests executed.
+            while (1) {
                 demoMode();
             }
         } else if (allTestsPassed() && buttons[1].pressed && buttons[2].pressed) {
