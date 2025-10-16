@@ -51,7 +51,7 @@ static void startupSequence(void) {
             test_cases_start(currentTest);
         } else if (!testActive && currentTest == 0 && buttons[0].pressed && buttons[2].pressed) {
             // Only allow demo mode when no test is selected/run (currentTest == 0)
-            // This prevents entering an un-exitable demo mode when the device is idle with no tests executed.
+            // This prevents entering an un-exitable demo mode when the device is idle but tests already executed.
             while (1) {
                 demoMode();
             }
