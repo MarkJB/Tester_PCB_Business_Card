@@ -44,7 +44,7 @@ Simulator [README](./software/simulator)
 
 The simulator is butil, tested and (if successful) deployed to GitHub pages by a [GitHub Actions pipeline](https://github.com/MarkJB/Tester_PCB_Business_Card/actions)
 
-You can play with the deployed simulator here: [Simulator Demo](./assets/tester_pcb_business_card_simulator.gif)
+You can play with the deployed simulator here: [Simulator Demo](https://markjb.github.io/Tester_PCB_Business_Card/)
 
 ## Firmware
 
